@@ -1,0 +1,16 @@
+{
+  "html": "html-template",
+  "log_dir": "./log/",
+  "oc_services_templates": "https://github.com/opencitations/oc_services_templates",
+  "base_url": "statistics.opencitations.net",
+  "stats_dir": "./oc_stats/",
+  "sync": {
+    "folders": [
+        "static/css",
+        "html-template/common"
+    ],
+    "files": [
+        "test.txt"
+    ]
+}
+}

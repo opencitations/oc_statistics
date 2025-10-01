@@ -1,0 +1,252 @@
+$def with (active, sp_title, current_subdomain, base_url, render)
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Font Awesome -->
+  <link href="/static/css/font-awesome.min.css" rel="stylesheet" />
+  <!-- Custom styles for this template -->
+  <link href="/static/css/cover.css" rel="stylesheet" />
+  <!-- Bootstrap core CSS -->
+  <link href="/static/bootstrap-533/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/custom.css" class="css">
+
+
+  <title>OpenCitations - Statistics</title>
+
+  <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+  <link href="/static/css/ie10-viewport-bug-workaround.css" rel="stylesheet" />
+
+
+  <!-- ******
+        ARIANNA
+        *********
+        - NECESSARIO: per la selezione delle date-->
+
+  <link href="/static/css/statistics.css" rel="stylesheet" />
+
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+
+  <!--NECESSARIO-->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.4.1/jquery.js"></script>
+
+  <!--NECESSARIO: Bottoni start / end-->
+  <link rel="stylesheet" type="text/css" media="screen"
+    href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.7.2/themes/base/jquery-ui.css">
+  <link href="https://code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css" />
+
+  <!--NECESSARIO: per la selezione delle date-->
+  <link href="static/css/MonthPicker.min.css" rel="stylesheet" type="text/css" />
+
+  <!--NECESSARIO: per la selezione delle date, Bottoni start / end-->
+  <script src="https://code.jquery.com/jquery-1.12.1.min.js"></script>
+
+  <!--NECESSARIO: MonthPicker Error: The jQuery UI button and datepicker plug-ins must be loaded.-->
+  <script src="https://code.jquery.com/ui/1.11.4/jquery-ui.min.js"></script>
+
+  <!--NECESSARIO: per MonthPicker-->
+  <script src="https://cdn.rawgit.com/digitalBush/jquery.maskedinput/1.4.1/dist/jquery.maskedinput.min.js"></script>
+
+  <script src="static/js/MonthPicker.min.js"></script>
+
+  <!--NECESSARIO: per i grafici-->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!--NECESSARIO: codice che gestisce l'update delle visualizzazioni, il recupero dati da API (per ora file locali), calendari, selezioni-->
+  <script src="/static/stats/statistics.js"></script>
+
+  <!--NECESSARIO: per le richieste per ottenere i dati-->
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+  <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+  <!--[if lt IE 9]>
+            <script src="/static/js/html5shiv.min.js"><![CDATA[ ]]></script>
+            <script src="/static/js/respond.min.js"><![CDATA[ ]]></script>
+        <![endif]-->
+</head>
+
+<body>
+
+  $:render.common.header(sp_title, current_subdomain)
+  <div id="loading" style="display: none;">
+    <img src="static/img/loading.gif" style="margin-top: 40vh;" alt="-" width="150" height="150">
+  </div>
+  <div class="container">
+    <div class="cover left" id="page_cont">
+
+      <h3 id="indexed_records">Statistics regarding the indexed Records</h3>
+      <p>The number of <b><a href="/index">records indexed</a> and covered by OpenCitations</b> throughout the time</p>
+
+      <!--http://kidsysco.github.io/jquery-ui-month-picker/-->
+      <div class="graph_cont">
+        <div class="graph_param" id="line_selector">
+
+          <div class="div_sx" id="from_to_div_1">
+            <div class="div_sx">
+              From: <input id="Start_1" class='Default' type="text" />
+            </div>
+            <div class="div_dx">
+              To: <input id="End_1" class='Default' type="text" />
+            </div>
+          </div>
+
+          <div class="div_dx" id="interval_div_1">
+            <div id="int_container_1">
+              <label for="Intervallo">Interval:</label>
+              <select name="Intervallo_1" id="Intervallo_1" required>
+                <option value="1">1-month</option>
+                <option value="2" selected="selected">2-month</option>
+                <option value="3">3-month</option>
+              </select>
+            </div>
+
+          </div>
+        </div>
+        <div>
+          <canvas id="myChart"></canvas>
+        </div>
+        <button id="Invio_1" , class="btn">Update Visualizations</button>
+      </div>
+
+
+
+      <h3 id="used_services">Statistics regarding the usage of the services</h3>
+      <p>The number of <b>API requests</b> made (using the <a href="/querying">OpenCitations API service</a>), and the
+        number of other <b>consultations made to the datasets</b> maintained by OpenCitations using any other <a
+          href="/querying">service provided by OpenCitations</a> (e.g., web-based search interfaces)</p>
+
+      <!--http://kidsysco.github.io/jquery-ui-month-picker/-->
+      <div class="graph_cont">
+        <div class="graph_param" id="bar_selector">
+
+          <div class="div_sx" id="from_to_div">
+            <div class="div_sx">
+              From: <input id="Start" class='Default' type="text" />
+            </div>
+            <div class="div_dx">
+              To: <input id="End" class='Default' type="text" />
+            </div>
+          </div>
+
+          <div class="div_dx" id="interval_div">
+            <div id="int_container">
+              <label for="Intervallo">Interval:</label>
+              <select name="Intervallo" id="Intervallo" required>
+                <option value="1" selected="selected">1-month</option>
+                <option value="2">2-month</option>
+                <option value="3">3-month</option>
+              </select>
+            </div>
+
+          </div>
+        </div>
+        <div id="container">
+          <canvas id="myChart2"></canvas>
+        </div>
+        <button id="Invio" , class="btn">Update Visualizations</button>
+      </div>
+
+      <!-- API Breakdown Chart -->
+      <h3 id="api_breakdown">Statistics regarding API requests breakdown</h3>
+      <p>Breakdown of <b>API requests</b> by type: INDEX v1, INDEX v2, and META</p>
+
+      <div class="graph_cont">
+        <div class="graph_param" id="api_selector">
+          <div class="div_sx" id="from_to_div_3">
+            <div class="div_sx">
+              From: <input id="Start_3" class='Default' type="text" />
+            </div>
+            <div class="div_dx">
+              To: <input id="End_3" class='Default' type="text" />
+            </div>
+          </div>
+
+          <div class="div_dx" id="interval_div_3">
+            <div id="int_container_3">
+              <label for="Intervallo_3">Interval:</label>
+              <select name="Intervallo_3" id="Intervallo_3" required>
+                <option value="1" selected="selected">1-month</option>
+                <option value="2">2-month</option>
+                <option value="3">3-month</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div>
+          <canvas id="myChart4"></canvas>
+        </div>
+        <button id="Invio_3" class="btn">Update Visualizations</button>
+      </div>
+
+      <!-- Country Distribution Pie Chart -->
+      <h3 id="country_distribution">Statistics regarding requests by Country</h3>
+      <p>Distribution of <b>requests by country</b> showing the top countries accessing OpenCitations services</p>
+
+      <div class="graph_cont">
+        <div class="graph_param" id="pie_selector">
+          <div class="div_sx" id="from_to_div_2">
+            <div class="div_sx">
+              From: <input id="Start_2" class='Default' type="text" />
+            </div>
+            <div class="div_dx">
+              To: <input id="End_2" class='Default' type="text" />
+            </div>
+          </div>
+
+          <div class="div_dx" id="top_countries_div">
+            <div id="top_container">
+              <label for="TopCountries">Show top:</label>
+              <select name="TopCountries" id="TopCountries" required>
+                <option value="5">5 countries</option>
+                <option value="10" selected="selected">10 countries</option>
+                <option value="15">15 countries</option>
+                <option value="20">20 countries</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div style="max-width: 600px; margin: 0 auto;">
+          <canvas id="myChart3"></canvas>
+        </div>
+        <button id="Invio_2" class="btn">Update Visualizations</button>
+      </div>
+
+    </div>
+  </div>
+
+  </div>
+
+
+
+
+  $:render.common.footer()
+  <!-- Bootstrap JS -->
+  <script src="/static/bootstrap-533/js/bootstrap.bundle.min.js"></script>
+
+
+
+  <!--Loading-->
+  <script>
+    document.getElementById("loading").style = "display: block; width: 100vw; height: 100vh; position: fixed; top:0; left:0; display: flex;justify-content: center;";
+    document.getElementById("page_cont").style = "display: none;";
+
+    //comment these two lines if you do not want auto generation of the chart
+    document.getElementById("Invio").style = "display: none;";
+    document.getElementById("Invio_1").style = "display: none;";
+    document.getElementById("Invio_2").style = "display: none;";
+    document.getElementById("Invio_3").style = "display: none;";
+
+    document.getElementsByTagName("footer")[0].style = "display: none;"
+
+  </script>
+  <!-- Cookies handler
+        ================================================== -->
+  <script src="/static/js/cookies.js"></script>
+
+</body>
+
+</html>
