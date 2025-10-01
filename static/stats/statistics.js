@@ -1,3 +1,17 @@
+// Encoding for Google Maps API key
+const p1 = 'QUl6YVN5RC05dFNy';
+const p2 = 'a2U3MlBvdVE=';
+const p3 = 'TW5NWC1hN2U=';
+const p4 = 'WlNXMGprRk0=';
+const p5 = 'QldZ';
+
+google.charts.load('current', {
+  'packages': ['geochart'],
+  'mapsApiKey': atob(p1) + atob(p2) + atob(p3) + atob(p4) + atob(p5)
+});
+
+let myGeoChart = null;
+
 $(window).load(function () {
   let last_date;
   let lastDate;
@@ -56,15 +70,79 @@ $(window).load(function () {
     return { index_v1, index_v2, meta };
   }
 
-  // Generate colors for pie chart
-  function generateColors(count) {
-    const colors = [
-      '#3C41E5', '#AB54FD', '#FF6384', '#36A2EB', '#FFCE56',
-      '#4BC0C0', '#9966FF', '#FF9F40', '#E7E9ED', '#C9CBCF',
-      '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
-      '#FF9F40', '#E7E9ED', '#C9CBCF', '#3C41E5', '#AB54FD'
-    ];
-    return colors.slice(0, count);
+  function drawGeoMap(countryData) {
+    let dataArray = [['Country', 'Requests']];
+    
+    for (const country in countryData) {
+      if (country !== 'Unknown' && country !== 'XX') {
+        dataArray.push([country, countryData[country]]);
+      }
+    }
+
+    var data = google.visualization.arrayToDataTable(dataArray);
+
+    let maxValue = Math.max(...Object.values(countryData));
+    let logMax = Math.log10(maxValue);
+    let steps = 8;
+    let colorValues = [];
+    
+    for (let i = 0; i < steps; i++) {
+      let value = Math.pow(10, (logMax * i / steps));
+      colorValues.push(Math.round(value));
+    }
+
+    var options = {
+    colorAxis: {
+      colors: [
+        '#eef4fc',
+        '#c2daee',
+        '#7baed6',
+        '#2171b5',
+        '#08519c',
+        '#02234e'
+      ]
+    },
+    backgroundColor: 'transparent',
+    datalessRegionColor: '#f7f7f7',
+    defaultColor: '#e0e0e0',
+    legend: {
+      numberFormat: 'short'
+    },
+    tooltip: {
+      trigger: 'focus',
+      isHtml: false
+    },
+    region: 'world',
+    displayMode: 'regions',
+    resolution: 'countries',
+    keepAspectRatio: true,
+    width: '100%',
+    height: '100%'
+  };
+
+    var chart = new google.visualization.GeoChart(document.getElementById('regions_div'));
+    chart.draw(data, options);
+    
+    // Force redraw after a small delay to ensure proper sizing
+    setTimeout(function() {
+      chart.draw(data, options);
+    }, 100);
+    
+    // Add resize listener to redraw on window resize
+    if (!window.geoChartResizeListener) {
+      window.geoChartResizeListener = true;
+      window.addEventListener('resize', function() {
+        if (window.myGeoChart && window.lastGeoData && window.lastGeoOptions) {
+          window.myGeoChart.draw(window.lastGeoData, window.lastGeoOptions);
+        }
+      });
+    }
+    
+    // Store for resize events
+    window.lastGeoData = data;
+    window.lastGeoOptions = options;
+    
+    return chart;
   }
 
   // Default data visualizations
@@ -507,105 +585,74 @@ $(window).load(function () {
         console.error("Error loading API breakdown chart data:", errors);
       })
 
-      // Pie Chart for Country Distribution
-      requests_list_2 = []
-      for (i = 0; i < default_query_array.length; i++) {
-        let ax_req_country = axios.get(default_query_array[i])
-        requests_list_2.push(ax_req_country)
-      }
+      // Geographic Map (Google GeoChart)
+      google.charts.setOnLoadCallback(function() {
+        requests_list_2 = []
+        for (i = 0; i < default_query_array.length; i++) {
+          let ax_req_country = axios.get(default_query_array[i])
+          requests_list_2.push(ax_req_country)
+        }
 
-      let country_aggregated = {};
-      axios.all(requests_list_2).then(axios.spread((...responses) => {
-        for (i = 0; i < responses.length; i++) {
-          metricsStr = (responses[i]).data;
+        let country_aggregated = {};
+        axios.all(requests_list_2).then(axios.spread((...responses) => {
+          for (i = 0; i < responses.length; i++) {
+            metricsStr = (responses[i]).data;
 
-          var array1 = metricsStr.split(/\r?\n/);
-          var filtered = array1.filter(function (value, index, arr) {
-            return !value.startsWith("#");
-          });
+            var array1 = metricsStr.split(/\r?\n/);
+            var filtered = array1.filter(function (value, index, arr) {
+              return !value.startsWith("#");
+            });
 
-          prom_to_dict = {}
+            prom_to_dict = {}
 
-          const pattern = /{/;
-          function extractQuotedText(str) {
-            const matches = str.match(/"(.*?)"/);
-            return (matches ? matches[1] : str);
-          };
-
-          for (let i = 0; i < filtered.length; i++) {
-            if (pattern.test(filtered[i]) == true) {
-              let pos_open_par = filtered[i].indexOf('{')
-              let pos_close_par = filtered[i].indexOf('}')
-
-              let dict_key = filtered[i].substr(0, pos_open_par);
-              if (!(dict_key in prom_to_dict)) {
-                prom_to_dict[dict_key] = {}
-              };
-
-              let nest_dict_key = extractQuotedText(filtered[i])
-              let nest_dict_val = filtered[i].substr(pos_close_par + 2);
-
-              prom_to_dict[dict_key][nest_dict_key] = nest_dict_val
-
-            } else {
-              let pos_space = filtered[i].indexOf(' ');
-              let dict_key = filtered[i].substr(0, pos_space);
-              let dict_val = filtered[i].substr(pos_space + 1);
-              prom_to_dict[dict_key] = dict_val
+            const pattern = /{/;
+            function extractQuotedText(str) {
+              const matches = str.match(/"(.*?)"/);
+              return (matches ? matches[1] : str);
             };
-          }
 
-          const country_data = extractCountryData(prom_to_dict);
-          
-          for (const country in country_data) {
-            if (!country_aggregated[country]) {
-              country_aggregated[country] = 0;
+            for (let i = 0; i < filtered.length; i++) {
+              if (pattern.test(filtered[i]) == true) {
+                let pos_open_par = filtered[i].indexOf('{')
+                let pos_close_par = filtered[i].indexOf('}')
+
+                let dict_key = filtered[i].substr(0, pos_open_par);
+                if (!(dict_key in prom_to_dict)) {
+                  prom_to_dict[dict_key] = {}
+                };
+
+                let nest_dict_key = extractQuotedText(filtered[i])
+                let nest_dict_val = filtered[i].substr(pos_close_par + 2);
+
+                prom_to_dict[dict_key][nest_dict_key] = nest_dict_val
+
+              } else {
+                let pos_space = filtered[i].indexOf(' ');
+                let dict_key = filtered[i].substr(0, pos_space);
+                let dict_val = filtered[i].substr(pos_space + 1);
+                prom_to_dict[dict_key] = dict_val
+              };
             }
-            country_aggregated[country] += Number(country_data[country]);
+
+            const country_data = extractCountryData(prom_to_dict);
+            
+            for (const country in country_data) {
+              if (!country_aggregated[country]) {
+                country_aggregated[country] = 0;
+              }
+              country_aggregated[country] += Number(country_data[country]);
+            }
           }
-        }
 
-        let topN = parseInt($('#TopCountries').val()) || 10;
-        let sorted_countries = Object.entries(country_aggregated)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, topN);
+          myGeoChart = drawGeoMap(country_aggregated);
+          window.myGeoChart = myGeoChart; // Save globally for resize and redraw
+          done();
 
-        let country_labels = sorted_countries.map(item => item[0]);
-        let country_values = sorted_countries.map(item => item[1]);
-
-        var pieChartData = {
-          labels: country_labels,
-          datasets: [{
-            data: country_values,
-            backgroundColor: generateColors(country_labels.length),
-            borderWidth: 1
-          }]
-        };
-
-        var pieChartOptions = {
-          responsive: true,
-          legend: {
-            position: "right"
-          },
-          title: {
-            display: true,
-            text: "Top " + topN + " Countries by Requests"
-          }
-        }
-
-        var ctx3 = document.getElementById("myChart3").getContext("2d");
-        myPie = new Chart(ctx3, {
-          type: "pie",
-          data: pieChartData,
-          options: pieChartOptions
-        });
-
-        done();
-
-      })).catch(errors => {
-        console.error("Error loading pie chart data:", errors);
-        done();
-      })
+        })).catch(errors => {
+          console.error("Error loading geographic map data:", errors);
+          done();
+        })
+      });
     })
     .then(function () {
       function elapsedMonths(d1, d2) {
@@ -644,7 +691,6 @@ $(window).load(function () {
       let end_2 = split_array_end[1] + "-" + split_array_end[0];
       let StartDate_2 = new Date(split_array_start[0] + "/01/" + split_array_start[1]);
       let EndDate_2 = new Date(split_array_end[0] + "/01/" + split_array_end[1]);
-      let TopCountries = 10;
 
       let start_3 = split_array_start[1] + "-" + split_array_start[0];
       let end_3 = split_array_end[1] + "-" + split_array_end[0];
@@ -652,6 +698,7 @@ $(window).load(function () {
       let EndDate_3 = new Date(split_array_end[0] + "/01/" + split_array_end[1]);
       let Interval_3 = 1;
 
+      // Month pickers configuration
       $('#Start').MonthPicker({
         MaxMonth: - latest_cur_elapsed_record_months,
         MinMonth: - elapsed_record_months,
@@ -764,11 +811,6 @@ $(window).load(function () {
       $('#Intervallo_1').on('change', function () {
         Interval_1 = ($(this).val());
         $('#Invio_1').click();
-      });
-
-      $('#TopCountries').on('change', function () {
-        TopCountries = parseInt($(this).val());
-        $('#Invio_2').click();
       });
 
       $('#Intervallo_3').on('change', function () {
@@ -1076,31 +1118,31 @@ $(window).load(function () {
         }
       });
 
-      // Pie Chart Update Handler
+      // Geo Map Update Handler
       $('#Invio_2').click(function () {
         if (StartDate_2 == "" && EndDate_2 == "") {
-          window.alert("Select a Start Date and an End Date (Pie Chart)")
+          window.alert("Select a Start Date and an End Date")
         } else if (StartDate_2 == "") {
-          window.alert("Select a Start Date (Pie Chart)")
+          window.alert("Select a Start Date")
         } else if (EndDate_2 == "") {
-          window.alert("Select an End Date (Pie Chart)")
+          window.alert("Select an End Date")
         } else {
           if (StartDate_2 >= EndDate_2) {
             StartDate_2 = ""
             EndDate_2 = ""
             $('#Start_2').val("")
             $('#End_2').val("")
-            window.alert("Start Date must precede End Date (Pie Chart)")
-            throw "Start Date must precede End Date (Pie Chart)"
+            window.alert("Start Date must precede End Date")
+            throw "Start Date must precede End Date"
           } else {
             var start_Date_2 = moment(start_2);
             var end_Date_2 = moment(end_2);
             var result_2 = [];
             while (start_Date_2.isBefore(end_Date_2)) {
-              result_2.push(baseurl+"/statistics/" + start_Date_2.format("YYYY-MM"));
+              result_2.push(baseurl + "/statistics/" + start_Date_2.format("YYYY-MM"));
               start_Date_2.add(1, 'month');
             }
-            result_2.push(baseurl+"/statistics/" + end_Date_2.format("YYYY-MM"))
+            result_2.push(baseurl + "/statistics/" + end_Date_2.format("YYYY-MM"))
           }
 
           requests_list_2 = []
@@ -1156,45 +1198,11 @@ $(window).load(function () {
               }
             }
 
-            let topN = parseInt($('#TopCountries').val()) || 10;
-            let sorted_countries = Object.entries(country_aggregated)
-              .sort((a, b) => b[1] - a[1])
-              .slice(0, topN);
-
-            let country_labels = sorted_countries.map(item => item[0]);
-            let country_values = sorted_countries.map(item => item[1]);
-
-            myPie.destroy()
-
-            var pieChartData = {
-              labels: country_labels,
-              datasets: [{
-                data: country_values,
-                backgroundColor: generateColors(country_labels.length),
-                borderWidth: 1
-              }]
-            };
-
-            var pieChartOptions = {
-              responsive: true,
-              legend: {
-                position: "right"
-              },
-              title: {
-                display: true,
-                text: "Top " + topN + " Countries by Requests"
-              }
-            }
-
-            var ctx3 = document.getElementById("myChart3").getContext("2d");
-            myPie = new Chart(ctx3, {
-              type: "pie",
-              data: pieChartData,
-              options: pieChartOptions
-            });
+            myGeoChart = drawGeoMap(country_aggregated);
+            window.myGeoChart = myGeoChart; // Save globally for resize and redraw
 
           })).catch(errors => {
-            console.error("Error updating pie chart:", errors);
+            console.error("Error updating geographic map:", errors);
           })
         }
       });
@@ -1376,4 +1384,11 @@ function done() {
     document.getElementById("loading").style = "display: none;";
     document.getElementById("page_cont").style = "display: visible;";
     document.getElementsByTagName("footer")[0].style = "display: visible;"
+    
+    // Force redraw of the Google GeoChart after the container is visible
+    if (window.myGeoChart && window.lastGeoData && window.lastGeoOptions) {
+        setTimeout(function() {
+            window.myGeoChart.draw(window.lastGeoData, window.lastGeoOptions);
+        }, 200);
+    }
 }
