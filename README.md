@@ -96,6 +96,7 @@ FROM python:3.11-slim
 # These can be overridden during container runtime
 ENV BASE_URL="statistics.opencitations.net" \
     SYNC_ENABLED="true" \
+    STATS_DIR="/mnt/public_logs/prom" \
     LOG_DIR="/mnt/log_dir/oc_statistics"
 
 # Install system dependencies required for Python package compilation
