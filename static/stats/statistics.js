@@ -70,25 +70,33 @@ $(window).load(function () {
     return { index_v1, index_v2, meta };
   }
 
-  // NEW: Helper function to extract country ISO code from Prometheus label
-  function extractCountryIso(str) {
-    const match = str.match(/country_iso="([^"]+)"/);
-    return match ? match[1] : null;
+  // Helper function to parse country line and extract both name and ISO
+  function parseCountryLine(line) {
+    const nameMatch = line.match(/country="([^"]+)"/);
+    const isoMatch = line.match(/country_iso="([^"]+)"/);
+    
+    return {
+      name: nameMatch ? nameMatch[1] : null,
+      iso: isoMatch ? isoMatch[1] : null
+    };
   }
 
   function drawGeoMap(countryData) {
-    let dataArray = [['Country', 'Requests']];
+    let dataArray = [['Country', 'Requests', {type: 'string', role: 'tooltip'}]];
     
     for (const countryIso in countryData) {
       // Skip Unknown and XX codes
       if (countryIso !== 'Unknown' && countryIso !== 'XX') {
-        dataArray.push([countryIso, countryData[countryIso]]);
+        const name = countryData[countryIso].name || countryIso;
+        const count = countryData[countryIso].count;
+        const tooltip = `${name} - ${countryIso}\nRequests: ${count.toLocaleString()}`;
+        dataArray.push([countryIso, count, tooltip]);
       }
     }
 
     var data = google.visualization.arrayToDataTable(dataArray);
 
-    let maxValue = Math.max(...Object.values(countryData));
+    let maxValue = Math.max(...Object.values(countryData).map(c => c.count));
     let logMax = Math.log10(maxValue);
     let steps = 8;
     let colorValues = [];
@@ -267,13 +275,7 @@ $(window).load(function () {
                 prom_to_dict[dict_key] = {}
               };
 
-              // MODIFIED: Use country_iso for country metrics
-              let nest_dict_key;
-              if (dict_key === "opencitations_requests_by_country_total") {
-                nest_dict_key = extractCountryIso(filtered[i]) || extractQuotedText(filtered[i]);
-              } else {
-                nest_dict_key = extractQuotedText(filtered[i]);
-              }
+              let nest_dict_key = extractQuotedText(filtered[i]);
               let nest_dict_val = filtered[i].substr(pos_close_par + 2);
 
               prom_to_dict[dict_key][nest_dict_key] = nest_dict_val
@@ -399,13 +401,7 @@ $(window).load(function () {
                 prom_to_dict[dict_key] = {}
               };
 
-              // MODIFIED: Use country_iso for country metrics
-              let nest_dict_key;
-              if (dict_key === "opencitations_requests_by_country_total") {
-                nest_dict_key = extractCountryIso(filtered[i]) || extractQuotedText(filtered[i]);
-              } else {
-                nest_dict_key = extractQuotedText(filtered[i]);
-              }
+              let nest_dict_key = extractQuotedText(filtered[i]);
               let nest_dict_val = filtered[i].substr(pos_close_par + 2);
 
               prom_to_dict[dict_key][nest_dict_key] = nest_dict_val
@@ -511,13 +507,7 @@ $(window).load(function () {
                 prom_to_dict[dict_key] = {}
               };
 
-              // MODIFIED: Use country_iso for country metrics
-              let nest_dict_key;
-              if (dict_key === "opencitations_requests_by_country_total") {
-                nest_dict_key = extractCountryIso(filtered[i]) || extractQuotedText(filtered[i]);
-              } else {
-                nest_dict_key = extractQuotedText(filtered[i]);
-              }
+              let nest_dict_key = extractQuotedText(filtered[i]);
               let nest_dict_val = filtered[i].substr(pos_close_par + 2);
 
               prom_to_dict[dict_key][nest_dict_key] = nest_dict_val
@@ -628,55 +618,30 @@ $(window).load(function () {
               return !value.startsWith("#");
             });
 
-            prom_to_dict = {}
-
-            const pattern = /{/;
-            function extractQuotedText(str) {
-              const matches = str.match(/"(.*?)"/);
-              return (matches ? matches[1] : str);
-            };
-
-            for (let i = 0; i < filtered.length; i++) {
-              if (pattern.test(filtered[i]) == true) {
-                let pos_open_par = filtered[i].indexOf('{')
-                let pos_close_par = filtered[i].indexOf('}')
-
-                let dict_key = filtered[i].substr(0, pos_open_par);
-                if (!(dict_key in prom_to_dict)) {
-                  prom_to_dict[dict_key] = {}
-                };
-
-                // MODIFIED: Use country_iso for country metrics
-                let nest_dict_key;
-                if (dict_key === "opencitations_requests_by_country_total") {
-                  nest_dict_key = extractCountryIso(filtered[i]) || extractQuotedText(filtered[i]);
-                } else {
-                  nest_dict_key = extractQuotedText(filtered[i]);
+            // Process country lines separately
+            for (let j = 0; j < filtered.length; j++) {
+              const line = filtered[j];
+              if (line.includes('opencitations_requests_by_country_total{')) {
+                const countryInfo = parseCountryLine(line);
+                if (countryInfo.iso && countryInfo.name) {
+                  // Extract the count value
+                  const valuePart = line.split('} ')[1];
+                  const count = Number(valuePart);
+                  
+                  if (!country_aggregated[countryInfo.iso]) {
+                    country_aggregated[countryInfo.iso] = { 
+                      name: countryInfo.name, 
+                      count: 0 
+                    };
+                  }
+                  country_aggregated[countryInfo.iso].count += count;
                 }
-                let nest_dict_val = filtered[i].substr(pos_close_par + 2);
-
-                prom_to_dict[dict_key][nest_dict_key] = nest_dict_val
-
-              } else {
-                let pos_space = filtered[i].indexOf(' ');
-                let dict_key = filtered[i].substr(0, pos_space);
-                let dict_val = filtered[i].substr(pos_space + 1);
-                prom_to_dict[dict_key] = dict_val
-              };
-            }
-
-            const country_data = extractCountryData(prom_to_dict);
-            
-            for (const country in country_data) {
-              if (!country_aggregated[country]) {
-                country_aggregated[country] = 0;
               }
-              country_aggregated[country] += Number(country_data[country]);
             }
           }
 
           myGeoChart = drawGeoMap(country_aggregated);
-          window.myGeoChart = myGeoChart; // Save globally for resize and redraw
+          window.myGeoChart = myGeoChart;
           done();
 
         })).catch(errors => {
@@ -923,13 +888,7 @@ $(window).load(function () {
                   if (!(dict_key in prom_to_dict)) {
                     prom_to_dict[dict_key] = {}
                   };
-                  // MODIFIED: Use country_iso for country metrics
-                  let nest_dict_key;
-                  if (dict_key === "opencitations_requests_by_country_total") {
-                    nest_dict_key = extractCountryIso(filtered[i]) || extractQuotedText(filtered[i]);
-                  } else {
-                    nest_dict_key = extractQuotedText(filtered[i]);
-                  }
+                  let nest_dict_key = extractQuotedText(filtered[i]);
                   let nest_dict_val = filtered[i].substr(pos_close_par + 2);
                   prom_to_dict[dict_key][nest_dict_key] = nest_dict_val
                 } else {
@@ -1084,13 +1043,7 @@ $(window).load(function () {
                   if (!(dict_key in prom_to_dict)) {
                     prom_to_dict[dict_key] = {}
                   };
-                  // MODIFIED: Use country_iso for country metrics
-                  let nest_dict_key;
-                  if (dict_key === "opencitations_requests_by_country_total") {
-                    nest_dict_key = extractCountryIso(filtered[i]) || extractQuotedText(filtered[i]);
-                  } else {
-                    nest_dict_key = extractQuotedText(filtered[i]);
-                  }
+                  let nest_dict_key = extractQuotedText(filtered[i]);
                   let nest_dict_val = filtered[i].substr(pos_close_par + 2);
                   prom_to_dict[dict_key][nest_dict_key] = nest_dict_val
                 } else {
@@ -1205,50 +1158,29 @@ $(window).load(function () {
                 return !value.startsWith("#");
               });
 
-              prom_to_dict = {}
-              const pattern = /{/;
-              function extractQuotedText(str) {
-                const matches = str.match(/"(.*?)"/);
-                return (matches ? matches[1] : str);
-              };
-
-              for (let i = 0; i < filtered.length; i++) {
-                if (pattern.test(filtered[i]) == true) {
-                  let pos_open_par = filtered[i].indexOf('{')
-                  let pos_close_par = filtered[i].indexOf('}')
-                  let dict_key = filtered[i].substr(0, pos_open_par);
-                  if (!(dict_key in prom_to_dict)) {
-                    prom_to_dict[dict_key] = {}
-                  };
-                  // MODIFIED: Use country_iso for country metrics
-                  let nest_dict_key;
-                  if (dict_key === "opencitations_requests_by_country_total") {
-                    nest_dict_key = extractCountryIso(filtered[i]) || extractQuotedText(filtered[i]);
-                  } else {
-                    nest_dict_key = extractQuotedText(filtered[i]);
+              // Process country lines separately
+              for (let j = 0; j < filtered.length; j++) {
+                const line = filtered[j];
+                if (line.includes('opencitations_requests_by_country_total{')) {
+                  const countryInfo = parseCountryLine(line);
+                  if (countryInfo.iso && countryInfo.name) {
+                    const valuePart = line.split('} ')[1];
+                    const count = Number(valuePart);
+                    
+                    if (!country_aggregated[countryInfo.iso]) {
+                      country_aggregated[countryInfo.iso] = { 
+                        name: countryInfo.name, 
+                        count: 0 
+                      };
+                    }
+                    country_aggregated[countryInfo.iso].count += count;
                   }
-                  let nest_dict_val = filtered[i].substr(pos_close_par + 2);
-                  prom_to_dict[dict_key][nest_dict_key] = nest_dict_val
-                } else {
-                  let pos_space = filtered[i].indexOf(' ');
-                  let dict_key = filtered[i].substr(0, pos_space);
-                  let dict_val = filtered[i].substr(pos_space + 1);
-                  prom_to_dict[dict_key] = dict_val
-                };
-              }
-
-              const country_data = extractCountryData(prom_to_dict);
-              
-              for (const country in country_data) {
-                if (!country_aggregated[country]) {
-                  country_aggregated[country] = 0;
                 }
-                country_aggregated[country] += Number(country_data[country]);
               }
             }
 
             myGeoChart = drawGeoMap(country_aggregated);
-            window.myGeoChart = myGeoChart; // Save globally for resize and redraw
+            window.myGeoChart = myGeoChart;
 
           })).catch(errors => {
             console.error("Error updating geographic map:", errors);
@@ -1330,13 +1262,7 @@ $(window).load(function () {
                   if (!(dict_key in prom_to_dict)) {
                     prom_to_dict[dict_key] = {}
                   };
-                  // MODIFIED: Use country_iso for country metrics
-                  let nest_dict_key;
-                  if (dict_key === "opencitations_requests_by_country_total") {
-                    nest_dict_key = extractCountryIso(filtered[i]) || extractQuotedText(filtered[i]);
-                  } else {
-                    nest_dict_key = extractQuotedText(filtered[i]);
-                  }
+                  let nest_dict_key = extractQuotedText(filtered[i]);
                   let nest_dict_val = filtered[i].substr(pos_close_par + 2);
                   prom_to_dict[dict_key][nest_dict_key] = nest_dict_val
                 } else {
