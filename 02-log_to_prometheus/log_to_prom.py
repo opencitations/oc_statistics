@@ -278,7 +278,7 @@ def parse_log_file(input_file, output_file, old_format=False):
                         total_requests += 1
                         request_methods[method] += 1
                         response_codes[response_code] += 1
-                        countries[country_name] += 1
+                        countries[country_iso] += 1
                         continents[continent] += 1
 
                         # Track unique tokens (exclude null and placeholders)
@@ -522,11 +522,11 @@ def generate_prometheus_file(output_file, total_requests, request_methods,
                 f.write(f'opencitations_requests_by_status_total{{status="{code}"}} {count}\n')
             f.write("\n")
 
-            # Countries (top 20)
-            f.write("# HELP opencitations_requests_by_country_total HTTP requests by country\n")
+            # Countries (ALL, by ISO code)
+            f.write("# HELP opencitations_requests_by_country_total HTTP requests by country (ISO code)\n")
             f.write("# TYPE opencitations_requests_by_country_total counter\n")
-            for country, count in countries.most_common(20):
-                country_escaped = country.replace('"', '\\"')
+            for country_iso, count in countries.items():
+                country_escaped = country_iso.replace('"', '\\"')
                 f.write(f'opencitations_requests_by_country_total{{country="{country_escaped}"}} {count}\n')
             f.write("\n")
 
