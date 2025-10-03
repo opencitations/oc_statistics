@@ -18,9 +18,9 @@ $(window).load(function () {
   const baseurl = window.location.origin;
   console.log("Base URL for API requests: " + baseurl);
 
-  // Helper function to extract API and dataset requests from Prometheus data
+  // Helper function to extract API and total requests from Prometheus data
   function extractMetrics(prom_to_dict) {
-    let api_req, dataset_req;
+    let api_req, total_req;
     
     if (prom_to_dict.opencitations_api_requests_total) {
       api_req = prom_to_dict.opencitations_api_requests_total;
@@ -32,17 +32,13 @@ $(window).load(function () {
       api_req = 0;
     }
 
-    if (prom_to_dict.opencitations_dataset_total_count) {
-      dataset_req = prom_to_dict.opencitations_dataset_total_count;
-    }
-    else if (prom_to_dict.opencitations_agg_counter_total && 
-             prom_to_dict.opencitations_agg_counter_total.dataset_requests) {
-      dataset_req = prom_to_dict.opencitations_agg_counter_total.dataset_requests;
+    if (prom_to_dict.opencitations_requests_total) {
+      total_req = prom_to_dict.opencitations_requests_total;
     } else {
-      dataset_req = 0;
+      total_req = 0;
     }
 
-    return { api_req, dataset_req };
+    return { api_req, total_req };
   }
 
   // Helper function to extract country data
@@ -288,24 +284,24 @@ $(window).load(function () {
             };
           }
 
-          const { api_req, dataset_req } = extractMetrics(prom_to_dict);
+          const { api_req, total_req } = extractMetrics(prom_to_dict);
 
           let result = {};
           result["api_requests"] = Number(api_req);
-          result["dataset_requests"] = Number(dataset_req);
+          result["total_requests"] = Number(total_req);
 
           key_name = months[date[2]] + " " + date[1];
           dict_name[key_name] = result;
         }
 
         api_req_list = [];
-        dataset_req_list = [];
+        total_req_list = [];
         labels_list = [];
 
         for (const key in dict_name) {
           labels_list.push(key);
           api_req_list.push(dict_name[key].api_requests);
-          dataset_req_list.push(dict_name[key].dataset_requests);
+          total_req_list.push(dict_name[key].total_requests);
         }
 
         var barChartData = {
@@ -319,11 +315,11 @@ $(window).load(function () {
               data: api_req_list
             },
             {
-              label: "Datasets",
+              label: "Total Requests",
               backgroundColor: "#AB54FD",
               borderColor: "purple",
               borderWidth: 1,
-              data: dataset_req_list
+              data: total_req_list
             },
           ]
         };
@@ -899,22 +895,22 @@ $(window).load(function () {
                 };
               }
 
-              const { api_req, dataset_req } = extractMetrics(prom_to_dict);
+              const { api_req, total_req } = extractMetrics(prom_to_dict);
               let result = {};
               result["api_requests"] = Number(api_req);
-              result["dataset_requests"] = Number(dataset_req);
+              result["total_requests"] = Number(total_req);
               key_name = months[date[2]] + " " + date[1];
               dict_name[key_name] = result;
             }
 
             api_req_list = [];
-            dataset_req_list = [];
+            total_req_list = [];
             labels_list = [];
 
             for (const key in dict_name) {
               labels_list.push(key);
               api_req_list.push(dict_name[key].api_requests);
-              dataset_req_list.push(dict_name[key].dataset_requests);
+              total_req_list.push(dict_name[key].total_requests);
             }
 
             myBar.destroy()
@@ -930,11 +926,11 @@ $(window).load(function () {
                   data: api_req_list
                 },
                 {
-                  label: "Datasets",
+                  label: "Total Requests",
                   backgroundColor: "#AB54FD",
                   borderColor: "purple",
                   borderWidth: 1,
-                  data: dataset_req_list
+                  data: total_req_list
                 },
               ]
             };
