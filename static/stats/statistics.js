@@ -81,7 +81,6 @@ $(window).load(function () {
     let dataArray = [['Country', 'Requests', {type: 'string', role: 'tooltip'}]];
     
     for (const countryIso in countryData) {
-      // Skip Unknown and XX codes
       if (countryIso !== 'Unknown' && countryIso !== 'XX') {
         const name = countryData[countryIso].name || countryIso;
         const count = countryData[countryIso].count;
@@ -92,54 +91,62 @@ $(window).load(function () {
 
     var data = google.visualization.arrayToDataTable(dataArray);
 
-    let maxValue = Math.max(...Object.values(countryData).map(c => c.count));
-    let logMax = Math.log10(maxValue);
-    let steps = 8;
-    let colorValues = [];
+    let allCounts = Object.values(countryData).map(c => c.count).filter(c => c > 0);
+    let minValue = Math.min(...allCounts);
+    let maxValue = Math.max(...allCounts);
     
-    for (let i = 0; i < steps; i++) {
-      let value = Math.pow(10, (logMax * i / steps));
-      colorValues.push(Math.round(value));
+    let logMin = Math.log10(minValue);
+    let logMax = Math.log10(maxValue);
+    
+    let colorValues = [];
+    for (let i = 0; i < 12; i++) {
+      let logValue = logMin + (logMax - logMin) * i / 11;
+      colorValues.push(Math.round(Math.pow(10, logValue)));
     }
 
     var options = {
-    colorAxis: {
-      colors: [
-        '#eef4fc',
-        '#c2daee',
-        '#7baed6',
-        '#2171b5',
-        '#08519c',
-        '#02234e'
-      ]
-    },
-    backgroundColor: 'transparent',
-    datalessRegionColor: '#f7f7f7',
-    defaultColor: '#e0e0e0',
-    legend: {
-      numberFormat: 'short'
-    },
-    tooltip: {
-      trigger: 'focus',
-      isHtml: false
-    },
-    region: 'world',
-    displayMode: 'regions',
-    resolution: 'countries',
-    keepAspectRatio: true,
-    width: '100%',
-    height: '100%'
-  };
+      colorAxis: {
+        values: colorValues,
+        colors: [
+          '#ffffff',
+          '#e6f2ff',
+          '#cce5ff',
+          '#99ccff',
+          '#66b3ff',
+          '#3399ff',
+          '#0080ff',
+          '#0066cc',
+          '#004d99',
+          '#003366',
+          '#001a33',
+          '#000d1a'
+        ]
+      },
+      backgroundColor: 'transparent',
+      datalessRegionColor: '#f7f7f7',
+      defaultColor: '#e0e0e0',
+      legend: {
+        numberFormat: 'short'
+      },
+      tooltip: {
+        trigger: 'focus',
+        isHtml: false
+      },
+      region: 'world',
+      displayMode: 'regions',
+      resolution: 'countries',
+      keepAspectRatio: true,
+      width: '100%',
+      height: '100%'
+    };
 
     var chart = new google.visualization.GeoChart(document.getElementById('regions_div'));
     chart.draw(data, options);
     
-    // Force redraw after a small delay to ensure proper sizing
     setTimeout(function() {
       chart.draw(data, options);
     }, 100);
     
-    // Add resize listener to redraw on window resize
     if (!window.geoChartResizeListener) {
       window.geoChartResizeListener = true;
       window.addEventListener('resize', function() {
@@ -149,12 +156,11 @@ $(window).load(function () {
       });
     }
     
-    // Store for resize events
     window.lastGeoData = data;
     window.lastGeoOptions = options;
     
     return chart;
-  }
+}
 
   // Default data visualizations
   axios.get(baseurl+'/statistics/last-month')
