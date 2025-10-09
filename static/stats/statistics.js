@@ -18,9 +18,9 @@ $(window).load(function () {
   const baseurl = window.location.origin;
   console.log("Base URL for API requests: " + baseurl);
 
-  // Helper function to extract API and total requests from Prometheus data
+  // Helper function to extract API and HTTP status code requests from Prometheus data
   function extractMetrics(prom_to_dict) {
-    let api_req, total_req;
+    let api_req, status_200, status_301, status_404, status_503, status_others;
     
     if (prom_to_dict.opencitations_api_requests_total) {
       api_req = prom_to_dict.opencitations_api_requests_total;
@@ -32,13 +32,31 @@ $(window).load(function () {
       api_req = 0;
     }
 
-    if (prom_to_dict.opencitations_requests_total) {
-      total_req = prom_to_dict.opencitations_requests_total;
-    } else {
-      total_req = 0;
+    // Extract HTTP status codes
+    status_200 = 0;
+    status_301 = 0;
+    status_404 = 0;
+    status_503 = 0;
+    status_others = 0;
+
+    if (prom_to_dict.opencitations_requests_by_status_total) {
+      const statusCodes = prom_to_dict.opencitations_requests_by_status_total;
+      
+      // Main status codes
+      status_200 = Number(statusCodes['200'] || 0);
+      status_301 = Number(statusCodes['301'] || 0);
+      status_404 = Number(statusCodes['404'] || 0);
+      status_503 = Number(statusCodes['503'] || 0);
+      
+      // Calculate others (all codes except 200, 301, 404, 503)
+      for (const [code, count] of Object.entries(statusCodes)) {
+        if (code !== '200' && code !== '301' && code !== '404' && code !== '503') {
+          status_others += Number(count);
+        }
+      }
     }
 
-    return { api_req, total_req };
+    return { api_req, status_200, status_301, status_404, status_503, status_others };
   }
 
   // Helper function to extract country data
@@ -84,7 +102,23 @@ $(window).load(function () {
       if (countryIso !== 'Unknown' && countryIso !== 'XX') {
         const name = countryData[countryIso].name || countryIso;
         const count = countryData[countryIso].count;
-        const tooltip = `${name} - ${countryIso}\nRequests: ${count.toLocaleString()}`;
+        
+        let tooltip;
+        if (countryIso === 'CN' && countryData[countryIso].details) {
+          // Special case for China with Hong Kong details
+          const details = countryData[countryIso].details;
+          tooltip = `${name} (including Hong Kong)\n`;
+          if (details.china > 0) {
+            tooltip += `China: ${details.china.toLocaleString()}\n`;
+          }
+          if (details.hongkong > 0) {
+            tooltip += `Hong Kong: ${details.hongkong.toLocaleString()}\n`;
+          }
+          tooltip += `Total: ${count.toLocaleString()}`;
+        } else {
+          tooltip = `${name} - ${countryIso}\nRequests: ${count.toLocaleString()}`;
+        }
+        
         dataArray.push([countryIso, count, tooltip]);
       }
     }
@@ -290,24 +324,36 @@ $(window).load(function () {
             };
           }
 
-          const { api_req, total_req } = extractMetrics(prom_to_dict);
+          const { api_req, status_200, status_301, status_404, status_503, status_others } = extractMetrics(prom_to_dict);
 
           let result = {};
           result["api_requests"] = Number(api_req);
-          result["total_requests"] = Number(total_req);
+          result["status_200"] = Number(status_200);
+          result["status_301"] = Number(status_301);
+          result["status_404"] = Number(status_404);
+          result["status_503"] = Number(status_503);
+          result["status_others"] = Number(status_others);
 
           key_name = months[date[2]] + " " + date[1];
           dict_name[key_name] = result;
         }
 
         api_req_list = [];
-        total_req_list = [];
+        status_200_list = [];
+        status_301_list = [];
+        status_404_list = [];
+        status_503_list = [];
+        status_others_list = [];
         labels_list = [];
 
         for (const key in dict_name) {
           labels_list.push(key);
           api_req_list.push(dict_name[key].api_requests);
-          total_req_list.push(dict_name[key].total_requests);
+          status_200_list.push(dict_name[key].status_200);
+          status_301_list.push(dict_name[key].status_301);
+          status_404_list.push(dict_name[key].status_404);
+          status_503_list.push(dict_name[key].status_503);
+          status_others_list.push(dict_name[key].status_others);
         }
 
         var barChartData = {
@@ -316,17 +362,51 @@ $(window).load(function () {
             {
               label: "API",
               backgroundColor: "#3C41E5",
-              borderColor: "blue",
+              borderColor: "#3C41E5",
               borderWidth: 1,
-              data: api_req_list
+              data: api_req_list,
+              stack: 'stack0'
             },
             {
-              label: "Total Requests",
-              backgroundColor: "#AB54FD",
-              borderColor: "purple",
+              label: "200 OK",
+              backgroundColor: "#28a745",
+              borderColor: "#28a745",
               borderWidth: 1,
-              data: total_req_list
+              data: status_200_list,
+              stack: 'stack1'
             },
+            {
+              label: "301 Redirect",
+              backgroundColor: "#17a2b8",
+              borderColor: "#17a2b8",
+              borderWidth: 1,
+              data: status_301_list,
+              stack: 'stack1'
+            },
+            {
+              label: "404 Not Found",
+              backgroundColor: "#ffc107",
+              borderColor: "#ffc107",
+              borderWidth: 1,
+              data: status_404_list,
+              stack: 'stack1'
+            },
+            {
+              label: "503 Service Unavailable",
+              backgroundColor: "#dc3545",
+              borderColor: "#dc3545",
+              borderWidth: 1,
+              data: status_503_list,
+              stack: 'stack1'
+            },
+            {
+              label: "Other HTTP Codes",
+              backgroundColor: "#6c757d",
+              borderColor: "#6c757d",
+              borderWidth: 1,
+              data: status_others_list,
+              stack: 'stack1'
+            }
           ]
         };
 
@@ -630,13 +710,37 @@ $(window).load(function () {
                   const valuePart = line.split('} ')[1];
                   const count = Number(valuePart);
                   
-                  if (!country_aggregated[countryInfo.iso]) {
-                    country_aggregated[countryInfo.iso] = { 
-                      name: countryInfo.name, 
-                      count: 0 
-                    };
+                  // Aggregate Hong Kong (HK) into China (CN)
+                  if (countryInfo.iso === 'HK') {
+                    if (!country_aggregated['CN']) {
+                      country_aggregated['CN'] = { 
+                        name: 'China', 
+                        count: 0,
+                        details: { china: 0, hongkong: 0 }
+                      };
+                    }
+                    country_aggregated['CN'].count += count;
+                    country_aggregated['CN'].details.hongkong += count;
+                  } else if (countryInfo.iso === 'CN') {
+                    if (!country_aggregated['CN']) {
+                      country_aggregated['CN'] = { 
+                        name: 'China', 
+                        count: 0,
+                        details: { china: 0, hongkong: 0 }
+                      };
+                    }
+                    country_aggregated['CN'].count += count;
+                    country_aggregated['CN'].details.china += count;
+                  } else {
+                    // Other countries
+                    if (!country_aggregated[countryInfo.iso]) {
+                      country_aggregated[countryInfo.iso] = { 
+                        name: countryInfo.name, 
+                        count: 0 
+                      };
+                    }
+                    country_aggregated[countryInfo.iso].count += count;
                   }
-                  country_aggregated[countryInfo.iso].count += count;
                 }
               }
             }
@@ -901,22 +1005,34 @@ $(window).load(function () {
                 };
               }
 
-              const { api_req, total_req } = extractMetrics(prom_to_dict);
+              const { api_req, status_200, status_301, status_404, status_503, status_others } = extractMetrics(prom_to_dict);
               let result = {};
               result["api_requests"] = Number(api_req);
-              result["total_requests"] = Number(total_req);
+              result["status_200"] = Number(status_200);
+              result["status_301"] = Number(status_301);
+              result["status_404"] = Number(status_404);
+              result["status_503"] = Number(status_503);
+              result["status_others"] = Number(status_others);
               key_name = months[date[2]] + " " + date[1];
               dict_name[key_name] = result;
             }
 
             api_req_list = [];
-            total_req_list = [];
+            status_200_list = [];
+            status_301_list = [];
+            status_404_list = [];
+            status_503_list = [];
+            status_others_list = [];
             labels_list = [];
 
             for (const key in dict_name) {
               labels_list.push(key);
               api_req_list.push(dict_name[key].api_requests);
-              total_req_list.push(dict_name[key].total_requests);
+              status_200_list.push(dict_name[key].status_200);
+              status_301_list.push(dict_name[key].status_301);
+              status_404_list.push(dict_name[key].status_404);
+              status_503_list.push(dict_name[key].status_503);
+              status_others_list.push(dict_name[key].status_others);
             }
 
             myBar.destroy()
@@ -927,17 +1043,51 @@ $(window).load(function () {
                 {
                   label: "API",
                   backgroundColor: "#3C41E5",
-                  borderColor: "blue",
+                  borderColor: "#3C41E5",
                   borderWidth: 1,
-                  data: api_req_list
+                  data: api_req_list,
+                  stack: 'stack0'
                 },
                 {
-                  label: "Total Requests",
-                  backgroundColor: "#AB54FD",
-                  borderColor: "purple",
+                  label: "200 OK",
+                  backgroundColor: "#28a745",
+                  borderColor: "#28a745",
                   borderWidth: 1,
-                  data: total_req_list
+                  data: status_200_list,
+                  stack: 'stack1'
                 },
+                {
+                  label: "301 Redirect",
+                  backgroundColor: "#17a2b8",
+                  borderColor: "#17a2b8",
+                  borderWidth: 1,
+                  data: status_301_list,
+                  stack: 'stack1'
+                },
+                {
+                  label: "404 Not Found",
+                  backgroundColor: "#ffc107",
+                  borderColor: "#ffc107",
+                  borderWidth: 1,
+                  data: status_404_list,
+                  stack: 'stack1'
+                },
+                {
+                  label: "503 Service Unavailable",
+                  backgroundColor: "#dc3545",
+                  borderColor: "#dc3545",
+                  borderWidth: 1,
+                  data: status_503_list,
+                  stack: 'stack1'
+                },
+                {
+                  label: "Other HTTP Codes",
+                  backgroundColor: "#6c757d",
+                  borderColor: "#6c757d",
+                  borderWidth: 1,
+                  data: status_others_list,
+                  stack: 'stack1'
+                }
               ]
             };
 
@@ -1169,13 +1319,37 @@ $(window).load(function () {
                     const valuePart = line.split('} ')[1];
                     const count = Number(valuePart);
                     
-                    if (!country_aggregated[countryInfo.iso]) {
-                      country_aggregated[countryInfo.iso] = { 
-                        name: countryInfo.name, 
-                        count: 0 
-                      };
+                    // Aggregate Hong Kong (HK) into China (CN)
+                    if (countryInfo.iso === 'HK') {
+                      if (!country_aggregated['CN']) {
+                        country_aggregated['CN'] = { 
+                          name: 'China', 
+                          count: 0,
+                          details: { china: 0, hongkong: 0 }
+                        };
+                      }
+                      country_aggregated['CN'].count += count;
+                      country_aggregated['CN'].details.hongkong += count;
+                    } else if (countryInfo.iso === 'CN') {
+                      if (!country_aggregated['CN']) {
+                        country_aggregated['CN'] = { 
+                          name: 'China', 
+                          count: 0,
+                          details: { china: 0, hongkong: 0 }
+                        };
+                      }
+                      country_aggregated['CN'].count += count;
+                      country_aggregated['CN'].details.china += count;
+                    } else {
+                      // Other countries
+                      if (!country_aggregated[countryInfo.iso]) {
+                        country_aggregated[countryInfo.iso] = { 
+                          name: countryInfo.name, 
+                          count: 0 
+                        };
+                      }
+                      country_aggregated[countryInfo.iso].count += count;
                     }
-                    country_aggregated[countryInfo.iso].count += count;
                   }
                 }
               }
