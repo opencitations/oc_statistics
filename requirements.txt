@@ -43,3 +43,6 @@ prometheus_client
 watchdog
 PyYAML
 argparse
+gunicorn>=22.0.0
+gevent
+zope.event

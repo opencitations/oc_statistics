@@ -62,6 +62,9 @@ When static sync is enabled (via `--sync-static` or `SYNC_ENABLED=true`), the ap
 
 ## Running Options
 
+### Local development
+For local development and testing, the application uses the built-in web.py HTTP server.
+
 The application supports the following command line arguments:
 
 - `--sync-static`: Synchronize static files at startup and enable periodic sync (every 30 minutes)
@@ -84,6 +87,19 @@ python3 statistics_oc.py --sync-static --port 8085
 
 The Docker container is configured to run with `--sync-static` enabled by default.
 
+### Production Deployment (Docker)
+You can customize the Gunicorn server configuration by modifying the `gunicorn.conf.py` file.
+
+- **Server**: Gunicorn with gevent workers
+- **Workers**: 4 concurrent worker processes
+- **Worker Type**: gevent (async) for handling thousands of simultaneous requests
+- **Timeout**: 1000 seconds (to handle long-running SPARQL queries)
+- **Connections per worker**: 1000 simultaneous connections
+
+The Docker container automatically uses Gunicorn and is configured with static sync enabled by default.
+
+> **Note**: The application code automatically detects the execution environment. When run with `python3 statistics_oc.py`, it uses the built-in web.py server. When run with Gunicorn (as in Docker), it uses the WSGI interface.
+
 ### Dockerfile
 
 You can change these variables in the Dockerfile:
@@ -99,14 +115,17 @@ ENV BASE_URL="statistics.opencitations.net" \
     STATS_DIR="/mnt/public_logs/prom" \
     LOG_DIR="/mnt/log_dir/oc_statistics"
 
+
+# Ensure Python output is unbuffered
+ENV PYTHONUNBUFFERED=1
+
 # Install system dependencies required for Python package compilation
 # We clean up apt cache after installation to reduce image size
 RUN apt-get update && \
     apt-get install -y \
     git \
     python3-dev \
-    build-essential && \
-    apt-get clean
+    build-essential
 
 # Set the working directory for our application
 WORKDIR /website
@@ -116,12 +135,11 @@ WORKDIR /website
 RUN git clone --single-branch --branch main https://github.com/opencitations/oc_statistics .
 
 # Install Python dependencies from requirements.txt
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Expose the port that our service will listen on
 EXPOSE 8080
 
-# Start the application
-# The Python script will now read environment variables for statistics configurations
-CMD ["python3", "statistics_oc.py"]
+# Start the application with Gunicorn
+CMD ["gunicorn", "-c", "gunicorn.conf.py", "statistics_oc:application"]
 ```

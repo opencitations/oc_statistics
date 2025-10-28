@@ -43,6 +43,7 @@ active = {
 # URL Mapping
 urls = (
     "/", "Main",
+    "/static/(.*)", "Static",
     '/favicon.ico', 'Favicon',
     # Statistics
     "/statistics/(.+)", "Statistics"
@@ -71,6 +72,9 @@ render = web.template.render(c["html"], globals={
 
 # App Web.py
 app = web.application(urls, globals())
+
+# WSGI application for Gunicorn
+application = app.wsgifunc()
 
 def sync_static_files():
     """
@@ -116,6 +120,37 @@ class Favicon:
     def GET(self):
         is_https = web.ctx.env.get('HTTP_X_FORWARDED_PROTO') == 'https' or web.ctx.env.get('HTTPS') == 'on' or web.ctx.env.get('SERVER_PORT') == '443'
         raise web.seeother(f"{'https' if is_https else 'http'}://{web.ctx.host}/static/favicon.ico")
+    
+
+class Static:
+    def GET(self, name):
+        """Serve static files"""
+        static_dir = "static"
+        file_path = os.path.join(static_dir, name)
+        
+        if not os.path.exists(file_path):
+            raise web.notfound()
+        
+        # Content types
+        ext = os.path.splitext(name)[1]
+        content_types = {
+            '.css': 'text/css',
+            '.js': 'application/javascript',
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif',
+            '.svg': 'image/svg+xml',
+            '.ico': 'image/x-icon',
+            '.woff': 'font/woff',
+            '.woff2': 'font/woff2',
+            '.ttf': 'font/ttf',
+        }
+        
+        web.header('Content-Type', content_types.get(ext, 'application/octet-stream'))
+        
+        with open(file_path, 'rb') as f:
+            return f.read()
 
 class Main:
     def GET(self):
