@@ -24,8 +24,6 @@ env_config = {
     "sync_enabled": os.getenv("SYNC_ENABLED", "false").lower() == "true"
 }
 
-
-
 active = {
     "corpus": "datasets",
     "index": "datasets",
@@ -88,206 +86,179 @@ def sync_static_files():
         print(f"Unexpected error during synchronization: {e}")
 
 
-# Process favicon.ico requests
+def clean_prometheus_output(content):
+    """Remove _created metrics and convert values from scientific notation to integers"""
+    filtered = []
+    
+    for line in content.split('\n'):
+        # Skip _created metrics (internal Prometheus timestamps)
+        if '_created' in line:
+            continue
+            
+        # Convert scientific notation and floats to int
+        if line and not line.startswith('#'):
+            parts = line.rsplit(' ', 1)
+            if len(parts) == 2:
+                try:
+                    val = float(parts[1])
+                    # Convert to int if it doesn't lose precision
+                    if abs(val - round(val)) < 0.001:  # threshold for rounding
+                        line = parts[0] + ' ' + str(int(round(val)))
+                except:
+                    pass
+        
+        filtered.append(line)
+    
+    return '\n'.join(filtered)
+
+
 class Favicon:
     def GET(self):
-        is_https = (
-            web.ctx.env.get('HTTP_X_FORWARDED_PROTO') == 'https' or
-            web.ctx.env.get('HTTPS') == 'on' or
-            web.ctx.env.get('SERVER_PORT') == '443'
-        )
-        protocol = 'https' if is_https else 'http'
-        raise web.seeother(f"{protocol}://{web.ctx.host}/static/favicon.ico")
+        is_https = web.ctx.env.get('HTTP_X_FORWARDED_PROTO') == 'https' or web.ctx.env.get('HTTPS') == 'on' or web.ctx.env.get('SERVER_PORT') == '443'
+        raise web.seeother(f"{'https' if is_https else 'http'}://{web.ctx.host}/static/favicon.ico")
 
 class Main:
     def GET(self):
         web_logger.mes()
-        current_subdomain = web.ctx.host.split('.')[0].lower()
-        return render.statistics(active="", sp_title="", current_subdomain=current_subdomain, base_url=env_config["base_url"],  render=render)
-    
+        return render.statistics(active="", sp_title="", current_subdomain=web.ctx.host.split('.')[0].lower(), base_url=env_config["base_url"], render=render)
+
 class Statistics:
     def __init__(self):
         self.__file_regex = re.compile(r'oc-(\d{4})-(\d{2})\.prom')
         self.__dates_regex = re.compile(r'(\d+)-(\d+)_(\d+)-(\d+)')
 
     def OPTIONS(self, date):
-        # remember to remove the slash at the end
         org_ref = web.ctx.env.get('HTTP_REFERER')
-        if org_ref is not None:
-            if org_ref.endswith("/"):
-                org_ref = org_ref[:-1]
-        else:
-            org_ref = "*"
-        web.header('Access-Control-Allow-Origin', org_ref)
+        if org_ref and org_ref.endswith("/"):
+            org_ref = org_ref[:-1]
+        web.header('Access-Control-Allow-Origin', org_ref or "*")
         web.header('Access-Control-Allow-Credentials', 'true')
         web.header('Access-Control-Allow-Methods', '*')
         web.header('Access-Control-Allow-Headers', 'Authorization')
-
-
 
     def GET(self, date):
-        #validateAccessToken()
         web_logger.mes()
-        file_path = ""
-
-        # Allow origin
-        # remember to remove the slash at the end
-        # remember to remove the slash at the end
         org_ref = web.ctx.env.get('HTTP_REFERER')
-        if org_ref is not None:
-            if org_ref.endswith("/"):
-                org_ref = org_ref[:-1]
-        else:
-            org_ref = "*"
-
-        web.header('Access-Control-Allow-Origin', org_ref)
+        if org_ref and org_ref.endswith("/"):
+            org_ref = org_ref[:-1]
+        web.header('Access-Control-Allow-Origin', org_ref or "*")
         web.header('Access-Control-Allow-Credentials', 'true')
         web.header('Access-Control-Allow-Methods', '*')
         web.header('Access-Control-Allow-Headers', 'Authorization')
 
-        # checks if any date has been specified, otherwise looks for the most recent statistics
-        if(date != "last-month"):
+        file_path = ""
+
+        if date != "last-month":
             if self.__dates_regex.match(date):
                 search = self.__dates_regex.search(date)
-
-                month_from = search.group(2)
-                year_from = search.group(1)
-                month_to = search.group(4)
-                year_to = search.group(3)
+                month_from, year_from = search.group(2), search.group(1)
+                month_to, year_to = search.group(4), search.group(3)
 
                 if year_from > year_to or (year_from == year_to and month_from > month_to):
-                    raise web.HTTPError(
-                        "400 ",
-                        {
-                            "Content-Type": "text/plain"
-                        },
-                        "Bad date provided, the ending date is lower than the beginning date."
-                    )
+                    raise web.HTTPError("400 ", {"Content-Type": "text/plain"}, "Bad date: ending before beginning")
 
                 registry = CollectorRegistry()
 
-                # Counter of accesses to different endpoints oc
-                http_requests = Counter(
-                    'opencitations_http_requests',
-                    'Counter for HTTP requests to opencitations endpoints',
-                    ['endpoint'],
-                    registry=registry
-                )
+                # Create all metrics
+                metrics = {
+                    'harvested_sources': Gauge('opencitations_harvested_data_sources', 'Harvested sources', registry=registry),
+                    'indexed_records': Gauge('opencitations_indexed_records', 'Indexed records', registry=registry),
+                    'api_requests': Counter('opencitations_api_requests', 'Total API requests', registry=registry),
+                    'api_index_requests': Counter('opencitations_api_index_requests', 'Total INDEX API requests', registry=registry),
+                    'api_index_by_version': Counter('opencitations_api_index_requests_by_version', 'INDEX API by version', ['version'], registry=registry),
+                    'api_meta_requests': Counter('opencitations_api_meta_requests', 'Total META API requests', registry=registry),
+                    'sparql_requests': Counter('opencitations_sparql_requests', 'Total SPARQL requests', registry=registry),
+                    'search_requests': Counter('opencitations_search_requests', 'Total SEARCH requests', registry=registry),
+                    'total_requests': Counter('opencitations_requests', 'Total HTTP requests', registry=registry),
+                    'by_response_class': Counter('opencitations_requests_by_response_class', 'By response class', ['response_class'], registry=registry),
+                    'by_method': Counter('opencitations_requests_by_method', 'By method', ['method'], registry=registry),
+                    'by_status': Counter('opencitations_requests_by_status', 'By status', ['status'], registry=registry),
+                    'by_country': Counter('opencitations_requests_by_country', 'By country', ['country', 'country_iso'], registry=registry),
+                    'by_continent': Counter('opencitations_requests_by_continent', 'By continent', ['continent'], registry=registry),
+                    'api_by_token': Counter('opencitations_api_requests_by_token', 'API by token', ['token'], registry=registry)
+                }
 
-                # Aggregate counter of accesses to the different categories of endpoints oc
-                agg_counter = Counter(
-                    'opencitations_agg_counter',
-                    'Aggregate HTTP requests counter to opencitations endpoints',
-                    ['category'],
-                    registry=registry
-                )
-                i = Info(
-                    'opencitations_date',
-                    'Date to which the statistics refers to',
-                    registry=registry
-                )
-                i.info({'month_from': str(month_from), 'year_from': str(
-                    year_from), "month_to": str(month_to), 'year_to': str(year_to)})
+                date_info = Info('opencitations_date', 'Date info', registry=registry)
+                date_info.info({'month_from': month_from, 'year_from': year_from, 'month_to': month_to, 'year_to': year_to})
 
-                indexed_records = Gauge(
-                    'opencitations_indexed_records',
-                    'Indexed records',
-                    registry=registry
-                )
-                harvested_data_sources = Gauge(
-                    'opencitations_harvested_data_sources',
-                    'Harvested data sources',
-                    registry=registry
-                )
+                # Aggregate monthly files
+                current_month, current_year = int(month_from), int(year_from)
+                target_month, target_year = int(month_to), int(year_to)
 
-                current_month = int(month_from)
-                current_year = int(year_from)
-                target_month = int(month_to)
-                target_year = int(year_to)
-
-                while(True):
-                    # For each month collects the statistics and adds
-                    # them to the ones to be returned.
-                    while(True):
-                        current_month_str = str(current_month)
-                        if len(current_month_str) == 1:
-                            current_month_str = '0' + current_month_str
-                        file_path = path.join(
-                            env_config["stats_dir"], "oc-" + str(current_year) + "-" + current_month_str + ".prom")
+                while True:
+                    while True:
+                        month_str = str(current_month).zfill(2)
+                        file_path = path.join(env_config["stats_dir"], f"oc-{current_year}-{month_str}.prom")
+                        
                         if path.isfile(file_path):
-                            f = open(file_path, 'r')
-                            families = text_fd_to_metric_families(f)
-                            for family in families:
-                                for sample in family.samples:
-                                    if sample[0] == "opencitations_agg_counter_total":
-                                        agg_counter.labels(
-                                            **sample[1]).inc(sample[2])
-                                    if sample[0] == "opencitations_http_requests_total":
-                                        http_requests.labels(
-                                            **sample[1]).inc(sample[2])
-                                    if sample[0] == "opencitations_indexed_records":
-                                        indexed_records.set(sample[2])
-                                    if sample[0] == "opencitations_harvested_data_sources":
-                                        harvested_data_sources.set(sample[2])
+                            with open(file_path, 'r') as f:
+                                for family in text_fd_to_metric_families(f):
+                                    for sample in family.samples:
+                                        name, labels, value = sample[0], sample[1], sample[2]
+                                        
+                                        # Map metric names to counters
+                                        mapping = {
+                                            'opencitations_api_requests_total': ('api_requests', None),
+                                            'opencitations_api_index_requests_total': ('api_index_requests', None),
+                                            'opencitations_api_index_requests_by_version_total': ('api_index_by_version', labels),
+                                            'opencitations_api_meta_requests_total': ('api_meta_requests', None),
+                                            'opencitations_sparql_requests_total': ('sparql_requests', None),
+                                            'opencitations_search_requests_total': ('search_requests', None),
+                                            'opencitations_requests_total': ('total_requests', None),
+                                            'opencitations_api_requests_by_token_total': ('api_by_token', labels),
+                                            'opencitations_requests_by_response_class_total': ('by_response_class', labels),
+                                            'opencitations_requests_by_method_total': ('by_method', labels),
+                                            'opencitations_requests_by_status_total': ('by_status', labels),
+                                            'opencitations_requests_by_country_total': ('by_country', labels),
+                                            'opencitations_requests_by_continent_total': ('by_continent', labels),
+                                            'opencitations_indexed_records': ('indexed_records', None),
+                                            'opencitations_harvested_data_sources': ('harvested_sources', None)
+                                        }
+                                        
+                                        if name in mapping:
+                                            metric_key, metric_labels = mapping[name]
+                                            metric = metrics[metric_key]
+                                            
+                                            if metric_labels:
+                                                metric.labels(**metric_labels).inc(value)
+                                            elif isinstance(metric, Gauge):
+                                                metric.set(value)
+                                            else:
+                                                metric.inc(value)
 
-                        # If we reaches the target year and the month we are visiting is the last one
-                        # or if we visited the whole year i.e. the last month has just been visited
-                        # exit the months's loop
                         if (current_year == target_year and current_month >= target_month) or current_month == 12:
                             break
                         current_month += 1
 
-                    # If we visited all the years than we exit the years's loop
-                    if(current_year == target_year):
+                    if current_year == target_year:
                         break
                     current_year += 1
                     current_month = 1
 
-                return generate_latest(registry)
+                return clean_prometheus_output(generate_latest(registry).decode('utf-8'))
             else:
-                file_name = "oc-" + date + ".prom"
+                file_name = f"oc-{date}.prom"
                 if self.__file_regex.match(file_name):
                     file_path = path.join(env_config["stats_dir"], file_name)
                     if not os.path.isfile(file_path):
                         file_path = ''
                 else:
-                    raise web.HTTPError(
-                        "400 ",
-                        {
-                            "Content-Type": "text/plain"
-                        },
-                        "Bad date format the required one is: year-month or year-month_year-month."
-                    )
+                    raise web.HTTPError("400 ", {"Content-Type": "text/plain"}, "Bad date format: use YYYY-MM or YYYY-MM_YYYY-MM")
         else:
-            max_year = 0
-            max_month = 0
+            max_year = max_month = 0
             for file in os.listdir(env_config["stats_dir"]):
                 if self.__file_regex.match(file):
-                    groups = self.__file_regex.search(file).groups()
-                    # checks that the file respects the format in the name
-                    year = int(groups[0])
-                    month = int(groups[1])
+                    year, month = map(int, self.__file_regex.search(file).groups())
                     if year > max_year or (year == max_year and month > max_month):
-                        max_year = year
-                        max_month = month
-                        file_path = os.path.join(env_config["stats_dir"], file)
+                        max_year, max_month = year, month
+                        file_path = path.join(env_config["stats_dir"], file)
 
-        # if the statistics file was found then it returns the content
-        if file_path != "":
+        if file_path:
             web.header('Content-Type', "text/plain")
-            f = open(file_path, 'r')
-            content = f.read()
-            f.close()
-            web.ctx.status = '200 OK'
-            return content
+            with open(file_path, 'r') as f:
+                return clean_prometheus_output(f.read())
         else:
-            raise web.HTTPError(
-                "404 ",
-                {
-                    "Content-Type": "text/plain"
-                },
-                "No statistics found."
-            )
+            raise web.HTTPError("404 ", {"Content-Type": "text/plain"}, "No statistics found")
 
 
 # Run the application
