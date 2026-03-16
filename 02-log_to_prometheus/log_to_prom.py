@@ -254,12 +254,12 @@ def parse_log_file(input_file, output_file, old_format=False):
                     if line_num % 1000000 == 0:
                         print(f"[CSV] Processed {line_num} lines...")
                     
-                    if len(row) > 10:
+                    if len(row) > 11:
                         malformed_lines += 1
                         print(f"[CSV] Line {line_num} skipped: {len(row)} columns (malformed)")
                         continue
 
-                    if len(row) < 10:
+                    if len(row) < 11:
                         malformed_lines += 1
                         continue
 
@@ -274,6 +274,7 @@ def parse_log_file(input_file, output_file, old_format=False):
                         user_agent = row[7].strip()
                         token = row[8].strip()
                         date = row[9].strip()
+                        referer = row[10].strip() if len(row) > 10 else "None"
 
                         total_requests += 1
                         request_methods[method] += 1

@@ -40,7 +40,7 @@ def process(mmdb_path: str, infile: str):
 
     out = sys.stdout.buffer
     out.write(
-        b"continent_name,country_iso_code,country_name,request_method,request_host,request_path,http_response_code,user_agent,token,date\n"
+        b"continent_name,country_iso_code,country_name,request_method,request_host,request_path,http_response_code,user_agent,token,date,referer\n"
     )
 
     processed = 0
@@ -72,6 +72,7 @@ def process(mmdb_path: str, infile: str):
             agent = obj.get("request_User-Agent", "") or obj.get("request_user-agent", "") or ""
             token = obj.get("token", obj.get("request_Authorization", "null")) or "null"
             date = obj.get("time", "")
+            referer = obj.get("request_Referer", "") or "None"
 
             # geo lookup
             try:
@@ -87,9 +88,10 @@ def process(mmdb_path: str, infile: str):
 
             path = str(path).replace('"', '""')
             agent = str(agent).replace('"', '""')
+            referer = str(referer).replace('"', '""')
 
             line_out = (
-                f'{continent},{iso},{cname},{method},{host},"{path}",{code},"{agent}",{token},{date}\n'
+                f'{continent},{iso},{cname},{method},{host},"{path}",{code},"{agent}",{token},{date},"{referer}"\n'
             ).encode("utf-8", "replace")
             out.write(line_out)
 
@@ -110,6 +112,7 @@ def process(mmdb_path: str, infile: str):
             agent = obj.get("request_User-Agent", "") or ""
             token = obj.get("token", obj.get("request_Authorization", "null")) or "null"
             date = obj.get("time", "")
+            referer = obj.get("request_Referer", "") or "None"
 
             geo = reader.get(ip) or {}
             continent = geo.get("continent", {}).get("names", {}).get("en", "Unknown")
@@ -118,9 +121,10 @@ def process(mmdb_path: str, infile: str):
 
             path = str(path).replace('"', '""')
             agent = str(agent).replace('"', '""')
+            referer = str(referer).replace('"', '""')
 
             line_out = (
-                f'{continent},{iso},{cname},{method},{host},"{path}",{code},"{agent}",{token},{date}\n'
+                f'{continent},{iso},{cname},{method},{host},"{path}",{code},"{agent}",{token},{date},"{referer}"\n'
             ).encode("utf-8", "replace")
             out.write(line_out)
         except Exception:
