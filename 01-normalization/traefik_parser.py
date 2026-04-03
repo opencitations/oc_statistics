@@ -4,8 +4,8 @@ import gzip
 import orjson
 import maxminddb
 
-CHUNK_SIZE = 8 * 1024 * 1024  # 8MB per blocco
-PROGRESS_STEP = 1_000_000     # report ogni milione di righe
+CHUNK_SIZE = 8 * 1024 * 1024
+PROGRESS_STEP = 1_000_000
 
 
 def count_lines(path: str) -> int:
@@ -74,7 +74,9 @@ def process(mmdb_path: str, infile: str):
             date = obj.get("time", "")
             referer = obj.get("request_Referer", "") or "None"
 
-            # geo lookup
+            if token.lower().startswith("basic "):
+                token = "null"
+
             try:
                 geo = reader.get(ip)
                 if not geo:
@@ -113,6 +115,9 @@ def process(mmdb_path: str, infile: str):
             token = obj.get("token", obj.get("request_Authorization", "null")) or "null"
             date = obj.get("time", "")
             referer = obj.get("request_Referer", "") or "None"
+
+            if token.lower().startswith("basic "):
+                token = "null"
 
             geo = reader.get(ip) or {}
             continent = geo.get("continent", {}).get("names", {}).get("en", "Unknown")
