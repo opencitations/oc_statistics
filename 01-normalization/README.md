@@ -1,6 +1,6 @@
 # traefik_parser.py
 
-Parses Traefik and legacy OpenCitations logs into a standardized CSV format with geographic data. Designed to make logs GDPR-friendly by replacing IPs with country info and filtering out garbage tokens.
+Parses Traefik and legacy OpenCitations logs into a standardized CSV format with geographic data. Designed to make logs GDPR-friendly by replacing IPs with a salted SHA-1 hash and country info, and filtering out garbage tokens.
 
 ## Install
 
@@ -14,15 +14,17 @@ Download GeoLite2-Country.mmdb from MaxMind: https://dev.maxmind.com/geoip/geoli
 ## Usage
 
 ```bash
-# Traefik JSON logs
-./traefik_parser.py GeoLite2-Country.mmdb access.log > output.csv
+# Salt is mandatory — pass it via --salt, env var, or edit SALT in the file
+./traefik_parser.py --salt "mysecret" GeoLite2-Country.mmdb access.log > output.csv
 
-# Legacy format
-./traefik_parser.py --old GeoLite2-Country.mmdb old_logs.txt > output.csv
+# Or via environment variable
+IP_HASH_SALT="mysecret" ./traefik_parser.py GeoLite2-Country.mmdb access.log > output.csv
 
 # Works with .gz files
-./traefik_parser.py GeoLite2-Country.mmdb logs.gz > output.csv
+./traefik_parser.py --salt "mysecret" GeoLite2-Country.mmdb logs.gz > output.csv
 ```
+
+If no salt is provided the script will exit with an error.
 
 ## Input Formats
 
@@ -31,45 +33,40 @@ Download GeoLite2-Country.mmdb from MaxMind: https://dev.maxmind.com/geoip/geoli
 {"ClientHost":"1.2.3.4","RequestMethod":"GET","RequestHost":"api.opencitations.net","RequestPath":"/index/v1/citations/10.1234/example","DownstreamStatus":200,"request_User-Agent":"curl/7.68.0","token":"a77255c3-3a39-4ce0-b4f6-9af9d67b5d94","time":"2025-05-01T12:00:00Z"}
 ```
 
-**Legacy (with --old):**
-```
-2025-05-01 00:00:00,155 # REMOTE_ADDR: 1.2.3.4 # HTTP_USER_AGENT: curl/7.68.0 # HTTP_HOST: opencitations.net # REQUEST_URI: /index/api/v1/references/10.1234/example # HTTP_AUTHORIZATION: a77255c3-3a39-4ce0-b4f6-9af9d67b5d94
-```
-
-Legacy dates get converted to ISO format automatically.
-
 ## Output
 
 CSV with these columns:
 ```
-continent_name,country_iso_code,country_name,request_method,request_host,request_path,http_response_code,user_agent,token,date
+hashed_ip,continent_name,country_iso_code,country_name,request_method,request_host,request_path,http_response_code,user_agent,token,date,referer
 ```
 
-Only `request_path` and `user_agent` are quoted. Header is not quoted.
+Only `request_path`, `user_agent` and `referer` are quoted. Header is not quoted.
 
 Example:
 ```csv
-Europe,IT,Italy,GET,api.opencitations.net,"/index/v1/citations/10.1234",200,"curl/7.68.0",a77255c3-3a39-4ce0-b4f6-9af9d67b5d94,2025-05-01T12:00:00Z
+a1b2c3d4e5f67890a1b2c3d4e5f67890abcdef01,Europe,IT,Italy,GET,api.opencitations.net,"/index/v1/citations/10.1234",200,"curl/7.68.0",a77255c3-3a39-4ce0-b4f6-9af9d67b5d94,2025-05-01T12:00:00Z,"None"
 ```
+
+## IP Hashing
+
+IPs are replaced with a salted SHA-1 hash (40 hex characters). The salt is fixed across runs so the same IP always produces the same hash, allowing correlation between different months. An in-memory cache avoids recomputing hashes for repeated IPs within the same run.
+
+Salt priority: `--salt` flag > `IP_HASH_SALT` env var > `SALT` constant in file.
 
 ## Token Filtering
 
-Keeps only valid API tokens (UUID format, 8+ chars, alphanumeric with hyphens/underscores).
-
 Filters out:
 - Basic Auth attempts: `Basic YWRtaW46YWRtaW4=` → `null`
-- Malformed tokens → `null`
 - Empty tokens → `null`
-- Strips `Bearer` prefix if present
 
-This removes bot probing and keeps real API usage.
+All other tokens (including Bearer-prefixed) are kept as-is.
 
 ## GDPR Compliance
 
-- IP addresses not included in output
+- Raw IP addresses not included in output
+- IPs replaced with irreversible salted hash
 - Geographic data aggregated to country level
-- Bot authentication attempts filtered out
-- Only legitimate API tokens preserved
+- Bot authentication attempts (Basic Auth) filtered out
 
 ## Performance
 

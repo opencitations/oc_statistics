@@ -1,11 +1,31 @@
 #!/usr/bin/env python3
 import sys
+import os
 import gzip
+import hashlib
+import argparse
 import orjson
 import maxminddb
 
 CHUNK_SIZE = 8 * 1024 * 1024
 PROGRESS_STEP = 1_000_000
+
+# Set your salt here or pass it via --salt or IP_HASH_SALT env var
+SALT = ""
+
+hash_cache = {}
+
+
+def hash_ip(ip, salt):
+    if not ip:
+        return "unknown"
+
+    if ip in hash_cache:
+        return hash_cache[ip]
+
+    h = hashlib.sha1((salt + ip).encode("utf-8")).hexdigest()
+    hash_cache[ip] = h
+    return h
 
 
 def count_lines(path: str) -> int:
@@ -21,7 +41,7 @@ def count_lines(path: str) -> int:
     return total
 
 
-def process(mmdb_path: str, infile: str):
+def process(mmdb_path: str, infile: str, salt: str):
     try:
         reader = maxminddb.open_database(mmdb_path)
     except Exception as e:
@@ -40,7 +60,7 @@ def process(mmdb_path: str, infile: str):
 
     out = sys.stdout.buffer
     out.write(
-        b"continent_name,country_iso_code,country_name,request_method,request_host,request_path,http_response_code,user_agent,token,date,referer\n"
+        b"hashed_ip,continent_name,country_iso_code,country_name,request_method,request_host,request_path,http_response_code,user_agent,token,date,referer\n"
     )
 
     processed = 0
@@ -77,6 +97,8 @@ def process(mmdb_path: str, infile: str):
             if token.lower().startswith("basic "):
                 token = "null"
 
+            hashed = hash_ip(ip, salt)
+
             try:
                 geo = reader.get(ip)
                 if not geo:
@@ -93,7 +115,7 @@ def process(mmdb_path: str, infile: str):
             referer = str(referer).replace('"', '""')
 
             line_out = (
-                f'{continent},{iso},{cname},{method},{host},"{path}",{code},"{agent}",{token},{date},"{referer}"\n'
+                f'{hashed},{continent},{iso},{cname},{method},{host},"{path}",{code},"{agent}",{token},{date},"{referer}"\n'
             ).encode("utf-8", "replace")
             out.write(line_out)
 
@@ -119,6 +141,8 @@ def process(mmdb_path: str, infile: str):
             if token.lower().startswith("basic "):
                 token = "null"
 
+            hashed = hash_ip(ip, salt)
+
             geo = reader.get(ip) or {}
             continent = geo.get("continent", {}).get("names", {}).get("en", "Unknown")
             iso = geo.get("country", {}).get("iso_code", "XX")
@@ -129,7 +153,7 @@ def process(mmdb_path: str, infile: str):
             referer = str(referer).replace('"', '""')
 
             line_out = (
-                f'{continent},{iso},{cname},{method},{host},"{path}",{code},"{agent}",{token},{date},"{referer}"\n'
+                f'{hashed},{continent},{iso},{cname},{method},{host},"{path}",{code},"{agent}",{token},{date},"{referer}"\n'
             ).encode("utf-8", "replace")
             out.write(line_out)
         except Exception:
@@ -142,10 +166,21 @@ def process(mmdb_path: str, infile: str):
 
 
 def main():
-    if len(sys.argv) != 3:
-        sys.stderr.write("Usage: traefik_parser.py <GeoLite2-Country.mmdb> <traefik.log[.gz]>\n")
-        return 2
-    return process(sys.argv[1], sys.argv[2])
+    parser = argparse.ArgumentParser(description="Parse Traefik logs to CSV with geo and hashed IP")
+    parser.add_argument("mmdb", help="Path to GeoLite2-Country.mmdb")
+    parser.add_argument("logfile", help="Traefik log file (.log or .gz)")
+    parser.add_argument("--salt", default=None, help="Salt for IP hashing (or set IP_HASH_SALT env var, or edit SALT in this file)")
+    args = parser.parse_args()
+
+    salt = args.salt or os.environ.get("IP_HASH_SALT", "") or SALT
+    if not salt:
+        sys.stderr.write("Error: no salt provided. Use one of:\n")
+        sys.stderr.write("  --salt <value>\n")
+        sys.stderr.write("  IP_HASH_SALT=<value> (env var)\n")
+        sys.stderr.write("  Edit SALT in this file\n")
+        return 1
+
+    return process(args.mmdb, args.logfile, salt)
 
 
 if __name__ == "__main__":

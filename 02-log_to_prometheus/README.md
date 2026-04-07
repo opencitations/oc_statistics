@@ -18,6 +18,15 @@ pip3 install requests
 ./log_to_prom.py --old input.csv -o metrics.prom
 ```
 
+## Input CSV Format
+
+Expects 12-column CSV from traefik_parser.py:
+```
+hashed_ip,continent_name,country_iso_code,country_name,request_method,request_host,request_path,http_response_code,user_agent,token,date,referer
+```
+
+The `hashed_ip` column (first column) is present in the CSV but not used for metrics generation.
+
 ## Format Detection
 
 **New format** (current): Service identified by subdomain

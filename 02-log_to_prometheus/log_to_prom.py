@@ -254,27 +254,28 @@ def parse_log_file(input_file, output_file, old_format=False):
                     if line_num % 1000000 == 0:
                         print(f"[CSV] Processed {line_num} lines...")
                     
-                    if len(row) > 11:
+                    if len(row) > 12:
                         malformed_lines += 1
                         print(f"[CSV] Line {line_num} skipped: {len(row)} columns (malformed)")
                         continue
 
-                    if len(row) < 11:
+                    if len(row) < 12:
                         malformed_lines += 1
                         continue
 
                     try:
-                        continent = row[0].strip()
-                        country_iso = row[1].strip()
-                        country_name = row[2].strip()
-                        method = row[3].strip()
-                        host = row[4].strip()
-                        path = row[5].strip()
-                        response_code = row[6].strip()
-                        user_agent = row[7].strip()
-                        token = row[8].strip()
-                        date = row[9].strip()
-                        referer = row[10].strip() if len(row) > 10 else "None"
+                        # hashed_ip = row[0] (not used in metrics)
+                        continent = row[1].strip()
+                        country_iso = row[2].strip()
+                        country_name = row[3].strip()
+                        method = row[4].strip()
+                        host = row[5].strip()
+                        path = row[6].strip()
+                        response_code = row[7].strip()
+                        user_agent = row[8].strip()
+                        token = row[9].strip()
+                        date = row[10].strip()
+                        referer = row[11].strip()
 
                         total_requests += 1
                         request_methods[method] += 1
