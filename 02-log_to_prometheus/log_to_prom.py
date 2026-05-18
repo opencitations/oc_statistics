@@ -45,11 +45,12 @@ def get_indexed_records():
     url3 = f"https://sparql.opencitations.net/meta?query={requests.utils.quote(query3)}"
     
     total = 0
+    headers = {"Accept": "application/sparql-results+xml"}
     
     try:
         print("[SPARQL] 1. Querying citations from index...")
         try:
-            response1 = requests.get(url1, timeout=600)
+            response1 = requests.get(url1, timeout=600, headers=headers)
             root1 = ET.fromstring(response1.content)
             ns1 = {'sparql': 'http://www.w3.org/2005/sparql-results#'}
             value1 = int(root1.find('.//sparql:binding/sparql:literal', ns1).text)
@@ -61,7 +62,7 @@ def get_indexed_records():
         
         print("[SPARQL] 2. Querying expressions from meta...")
         try:
-            response2 = requests.get(url2, timeout=600)
+            response2 = requests.get(url2, timeout=600, headers=headers)
             root2 = ET.fromstring(response2.content)
             ns2 = {'sparql': 'http://www.w3.org/2005/sparql-results#'}
             value2 = int(root2.find('.//sparql:binding/sparql:literal', ns2).text)
@@ -73,7 +74,7 @@ def get_indexed_records():
         
         print("[SPARQL] 3. Querying agents from meta...")
         try:
-            response3 = requests.get(url3, timeout=600)
+            response3 = requests.get(url3, timeout=600, headers=headers)
             root3 = ET.fromstring(response3.content)
             ns3 = {'sparql': 'http://www.w3.org/2005/sparql-results#'}
             value3 = int(root3.find('.//sparql:binding/sparql:literal', ns3).text)
