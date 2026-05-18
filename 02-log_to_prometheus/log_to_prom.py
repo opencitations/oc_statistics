@@ -17,6 +17,19 @@ import threading
 # Number of harvested data sources (update manually when needed)
 data_sources = 9
 
+# SPARQL endpoints (configurable via environment variables)
+SPARQL_ENDPOINT_INDEX = os.environ.get(
+    "SPARQL_ENDPOINT_INDEX",
+    "https://sparql.opencitations.net/index"
+)
+SPARQL_ENDPOINT_META = os.environ.get(
+    "SPARQL_ENDPOINT_META",
+    "https://sparql.opencitations.net/meta"
+)
+
+# Timeout for each SPARQL query (in seconds)
+SPARQL_TIMEOUT = 300
+
 def open_log_file(input_file):
     """
     Opens a regular or gzip-compressed file for reading text.
@@ -36,62 +49,66 @@ def get_indexed_records():
     fallback_agents = 341540052
     
     query1 = "PREFIX cito:<http://purl.org/spar/cito/>\nSELECT (COUNT(?citation) AS ?count) WHERE {\n    ?citation a cito:Citation .\n}"
-    url1 = f"https://sparql.opencitations.net/index?query={requests.utils.quote(query1)}"
+    url1 = f"{SPARQL_ENDPOINT_INDEX}?query={requests.utils.quote(query1)}"
     
     query2 = "PREFIX fabio: <http://purl.org/spar/fabio/>\n\nSELECT (COUNT(?br) AS ?total)\nWHERE {\n  ?br a fabio:Expression .\n}"
-    url2 = f"https://sparql.opencitations.net/meta?query={requests.utils.quote(query2)}"
+    url2 = f"{SPARQL_ENDPOINT_META}?query={requests.utils.quote(query2)}"
     
     query3 = "SELECT (COUNT(?ra) as ?total) {\n      ?ra a <http://xmlns.com/foaf/0.1/Agent>.\n}"
-    url3 = f"https://sparql.opencitations.net/meta?query={requests.utils.quote(query3)}"
+    url3 = f"{SPARQL_ENDPOINT_META}?query={requests.utils.quote(query3)}"
     
     total = 0
     headers = {"Accept": "application/sparql-results+xml"}
+    ns = {'sparql': 'http://www.w3.org/2005/sparql-results#'}
     
+    print(f"[SPARQL] Using INDEX endpoint: {SPARQL_ENDPOINT_INDEX}")
+    print(f"[SPARQL] Using META endpoint: {SPARQL_ENDPOINT_META}")
+    print(f"[SPARQL] Timeout per query: {SPARQL_TIMEOUT}s")
+    
+    # Query 1: Citations from INDEX
+    print("[SPARQL] 1. Querying citations from index...")
     try:
-        print("[SPARQL] 1. Querying citations from index...")
-        try:
-            response1 = requests.get(url1, timeout=600, headers=headers)
-            root1 = ET.fromstring(response1.content)
-            ns1 = {'sparql': 'http://www.w3.org/2005/sparql-results#'}
-            value1 = int(root1.find('.//sparql:binding/sparql:literal', ns1).text)
-            print(f"[SPARQL]    Citations: {value1}")
-        except:
-            value1 = fallback_citations
-            print(f"[SPARQL]    Citations (fallback): {value1}")
-        total += value1
-        
-        print("[SPARQL] 2. Querying expressions from meta...")
-        try:
-            response2 = requests.get(url2, timeout=600, headers=headers)
-            root2 = ET.fromstring(response2.content)
-            ns2 = {'sparql': 'http://www.w3.org/2005/sparql-results#'}
-            value2 = int(root2.find('.//sparql:binding/sparql:literal', ns2).text)
-            print(f"[SPARQL]    Expressions: {value2}")
-        except:
-            value2 = fallback_expressions
-            print(f"[SPARQL]    Expressions (fallback): {value2}")
-        total += value2
-        
-        print("[SPARQL] 3. Querying agents from meta...")
-        try:
-            response3 = requests.get(url3, timeout=600, headers=headers)
-            root3 = ET.fromstring(response3.content)
-            ns3 = {'sparql': 'http://www.w3.org/2005/sparql-results#'}
-            value3 = int(root3.find('.//sparql:binding/sparql:literal', ns3).text)
-            print(f"[SPARQL]    Agents: {value3}")
-        except:
-            value3 = fallback_agents
-            print(f"[SPARQL]    Agents (fallback): {value3}")
-        total += value3
-        
-        print(f"[SPARQL] Total indexed records: {total}")
-        return total
-        
+        response1 = requests.get(url1, timeout=SPARQL_TIMEOUT, headers=headers)
+        response1.raise_for_status()
+        root1 = ET.fromstring(response1.content)
+        value1 = int(root1.find('.//sparql:binding/sparql:literal', ns).text)
+        print(f"[SPARQL]    Citations: {value1}")
     except Exception as e:
-        print(f"[SPARQL] Error during SPARQL queries: {e}")
-        fallback_total = fallback_citations + fallback_expressions + fallback_agents
-        print(f"[SPARQL] Using fallback value: {fallback_total}")
-        return fallback_total
+        value1 = fallback_citations
+        print(f"[SPARQL]    Citations FAILED ({type(e).__name__}: {e})")
+        print(f"[SPARQL]    Using fallback: {value1}")
+    total += value1
+    
+    # Query 2: Expressions from META
+    print("[SPARQL] 2. Querying expressions from meta...")
+    try:
+        response2 = requests.get(url2, timeout=SPARQL_TIMEOUT, headers=headers)
+        response2.raise_for_status()
+        root2 = ET.fromstring(response2.content)
+        value2 = int(root2.find('.//sparql:binding/sparql:literal', ns).text)
+        print(f"[SPARQL]    Expressions: {value2}")
+    except Exception as e:
+        value2 = fallback_expressions
+        print(f"[SPARQL]    Expressions FAILED ({type(e).__name__}: {e})")
+        print(f"[SPARQL]    Using fallback: {value2}")
+    total += value2
+    
+    # Query 3: Agents from META
+    print("[SPARQL] 3. Querying agents from meta...")
+    try:
+        response3 = requests.get(url3, timeout=SPARQL_TIMEOUT, headers=headers)
+        response3.raise_for_status()
+        root3 = ET.fromstring(response3.content)
+        value3 = int(root3.find('.//sparql:binding/sparql:literal', ns).text)
+        print(f"[SPARQL]    Agents: {value3}")
+    except Exception as e:
+        value3 = fallback_agents
+        print(f"[SPARQL]    Agents FAILED ({type(e).__name__}: {e})")
+        print(f"[SPARQL]    Using fallback: {value3}")
+    total += value3
+    
+    print(f"[SPARQL] Total indexed records: {total}")
+    return total
 
 def identify_service_old_format(host, path):
     """
