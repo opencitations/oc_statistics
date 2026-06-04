@@ -1,7 +1,7 @@
 import web
 import os
 import json
-from src.wl import WebLogger
+#from src.wl import WebLogger
 import requests
 import subprocess
 from os import path
