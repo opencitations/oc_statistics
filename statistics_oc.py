@@ -49,20 +49,20 @@ urls = (
     "/statistics/(.+)", "Statistics"
 )
 
-# Set the web logger
-web_logger = WebLogger(env_config["base_url"], env_config["log_dir"], [
-    "HTTP_X_FORWARDED_FOR", # The IP address of the client
-    "REMOTE_ADDR",          # The IP address of internal balancer
-    "HTTP_USER_AGENT",      # The browser type of the visitor
-    "HTTP_REFERER",         # The URL of the page that called your program
-    "HTTP_HOST",            # The hostname of the page being attempted
-    "REQUEST_URI",          # The interpreted pathname of the requested document
-                            # or CGI (relative to the document root)
-    "HTTP_AUTHORIZATION",   # Access token
-    ],
-    # comment this line only for test purposes
-     {"REMOTE_ADDR": ["130.136.130.1", "130.136.2.47", "127.0.0.1"]}
-)
+# # Set the web logger
+# web_logger = WebLogger(env_config["base_url"], env_config["log_dir"], [
+#     "HTTP_X_FORWARDED_FOR", # The IP address of the client
+#     "REMOTE_ADDR",          # The IP address of internal balancer
+#     "HTTP_USER_AGENT",      # The browser type of the visitor
+#     "HTTP_REFERER",         # The URL of the page that called your program
+#     "HTTP_HOST",            # The hostname of the page being attempted
+#     "REQUEST_URI",          # The interpreted pathname of the requested document
+#                             # or CGI (relative to the document root)
+#     "HTTP_AUTHORIZATION",   # Access token
+#     ],
+#     # comment this line only for test purposes
+#      {"REMOTE_ADDR": ["130.136.130.1", "130.136.2.47", "127.0.0.1"]}
+# )
 
 render = web.template.render(c["html"], globals={
     'str': str,
@@ -154,7 +154,7 @@ class Static:
 
 class Main:
     def GET(self):
-        web_logger.mes()
+        #web_logger.mes()
         return render.statistics(active="", sp_title="", current_subdomain=web.ctx.host.split('.')[0].lower(), base_url=env_config["base_url"], render=render)
 
 class Statistics:
@@ -172,7 +172,7 @@ class Statistics:
         web.header('Access-Control-Allow-Headers', 'Authorization')
 
     def GET(self, date):
-        web_logger.mes()
+        #web_logger.mes()
         org_ref = web.ctx.env.get('HTTP_REFERER')
         if org_ref and org_ref.endswith("/"):
             org_ref = org_ref[:-1]
