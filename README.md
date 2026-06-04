@@ -18,6 +18,7 @@ The service requires the following environment variables. These values take prec
 - `BASE_URL`: Base URL for the statistics endpoint
 - `LOG_DIR`: Directory path where log files will be stored
 - `SYNC_ENABLED`: Enable/disable static files synchronization (default: false)
+- `STATS_DIR` : Directory path where prometheus files are stored 
 
 For instance:
 
@@ -25,6 +26,7 @@ For instance:
 BASE_URL=statistics.opencitations.net
 LOG_DIR=/home/dir/log/
 SYNC_ENABLED=true
+STATS_DIR=/mnt/public_logs/prom
 ```
 
 > **Note**: When running with Docker, environment variables always override the corresponding values in `conf.json`. If an environment variable is not set, the application will fall back to the values defined in `conf.json`.
