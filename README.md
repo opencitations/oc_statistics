@@ -63,29 +63,37 @@ When static sync is enabled (via `--sync-static` or `SYNC_ENABLED=true`), the ap
 ## Running Options
 
 ### Local development
-For local development and testing, the application uses the built-in web.py HTTP server.
+This project uses [uv](https://docs.astral.sh/uv/) for dependency management.
 
-The application supports the following command line arguments:
+First, install uv package manager and project dependencies:
+```bash
+# Install uv package manager
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# Install project dependencies
+uv sync
+```
 
-- `--sync-static`: Synchronize static files at startup and enable periodic sync (every 30 minutes)
-- `--port PORT`: Specify the port to run the application on (default: 8080)
+For local development and testing, the application uses the built-in web.py HTTP server:
 
 Examples:
 ```bash
 # Run with default settings
-python3 statistics_oc.py
+uv run statistics_oc.py
 
 # Run with static sync enabled
-python3 statistics_oc.py --sync-static
+uv run statistics_oc.py --sync-static
 
 # Run on custom port
-python3 statistics_oc.py --port 8085
+uv run statistics_oc.py --port 8085
 
 # Run with both options
-python3 statistics_oc.py --sync-static --port 8085
+uv run statistics_oc.py --sync-static --port 8085
 ```
 
-The Docker container is configured to run with `--sync-static` enabled by default.
+The application supports the following command line arguments:
+
+- `--sync-static`: Synchronize static files at startup
+- `--port PORT`: Specify the port to run the application on (default: 8080)
 
 ### Production Deployment (Docker)
 You can customize the Gunicorn server configuration by modifying the `gunicorn.conf.py` file.
@@ -98,7 +106,7 @@ You can customize the Gunicorn server configuration by modifying the `gunicorn.c
 
 The Docker container automatically uses Gunicorn and is configured with static sync enabled by default.
 
-> **Note**: The application code automatically detects the execution environment. When run with `python3 statistics_oc.py`, it uses the built-in web.py server. When run with Gunicorn (as in Docker), it uses the WSGI interface.
+> **Note**: The application code automatically detects the execution environment. When run with `uv run statistics_oc.py`, it uses the built-in web.py server. When run with Gunicorn (as in Docker), it uses the WSGI interface.
 
 ### Dockerfile
 
@@ -124,8 +132,14 @@ ENV PYTHONUNBUFFERED=1
 RUN apt-get update && \
     apt-get install -y \
     git \
+    curl \
+    ca-certificates \
     python3-dev \
     build-essential
+
+# Install uv package manager
+RUN wget -qO- https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.cargo/bin:$PATH"
 
 # Set the working directory for our application
 WORKDIR /website
@@ -134,12 +148,12 @@ WORKDIR /website
 # The dot at the end means clone into current directory
 RUN git clone --single-branch --branch main https://github.com/opencitations/oc_statistics .
 
-# Install Python dependencies from requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies using uv
+RUN uv sync --frozen --no-dev
 
 # Expose the port that our service will listen on
 EXPOSE 8080
 
-# Start the application with Gunicorn
-CMD ["gunicorn", "-c", "gunicorn.conf.py", "statistics_oc:application"]
+# Start the application with gunicorn via uv
+CMD ["uv", "run", "gunicorn", "-c", "gunicorn.conf.py", "statistics:application"]
 ```
