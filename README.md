@@ -119,41 +119,45 @@ FROM python:3.11-slim
 # Define environment variables with default values
 # These can be overridden during container runtime
 ENV BASE_URL="statistics.opencitations.net" \
-    SYNC_ENABLED="true" \
+    LOG_DIR="/mnt/log_dir/oc_statistics"  \
+    SPARQL_ENDPOINT_INDEX="http://qlever-service.default.svc.cluster.local:7011" \
+    SPARQL_ENDPOINT_META="http://virtuoso-service.default.svc.cluster.local:8890/sparql" \
     STATS_DIR="/mnt/public_logs/prom" \
-    LOG_DIR="/mnt/log_dir/oc_statistics"
-
+    SYNC_ENABLED="true" 
 
 # Ensure Python output is unbuffered
 ENV PYTHONUNBUFFERED=1
 
-# Install system dependencies required for Python package compilation
-# We clean up apt cache after installation to reduce image size
+# Install system dependencies + uv
 RUN apt-get update && \
     apt-get install -y \
     git \
-    curl \
-    ca-certificates \
     python3-dev \
-    build-essential
+    build-essential \
+    curl && \
+    curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Install uv package manager
-RUN wget -qO- https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.cargo/bin:$PATH"
+# Make uv available in PATH
+ENV PATH="/root/.local/bin:$PATH"
 
 # Set the working directory for our application
 WORKDIR /website
+
+# Copy dependency files first for better Docker layer caching
+COPY pyproject.toml uv.lock README.md ./
+
+# Install dependencies (frozen = use exact lockfile versions)
+RUN uv sync --frozen --no-dev --no-install-project
 
 # Clone the specific branch from the repository
 # The dot at the end means clone into current directory
 RUN git clone --single-branch --branch main https://github.com/opencitations/oc_statistics .
 
-# Install Python dependencies using uv
-RUN uv sync --frozen --no-dev
-
 # Expose the port that our service will listen on
 EXPOSE 8080
 
 # Start the application with gunicorn via uv
-CMD ["uv", "run", "gunicorn", "-c", "gunicorn.conf.py", "statistics:application"]
+CMD ["uv", "run", "gunicorn", "-c", "gunicorn.conf.py", "statistics_oc:application"]
 ```

@@ -8,38 +8,39 @@ ENV BASE_URL="statistics.opencitations.net" \
     SPARQL_ENDPOINT_INDEX="http://qlever-service.default.svc.cluster.local:7011" \
     SPARQL_ENDPOINT_META="http://virtuoso-service.default.svc.cluster.local:8890/sparql" \
     STATS_DIR="/mnt/public_logs/prom" \
-    SYNC_ENABLED="true"
+    SYNC_ENABLED="true" 
 
 # Ensure Python output is unbuffered
 ENV PYTHONUNBUFFERED=1
 
-# Install uv for dependency management
-ADD https://astral.sh/uv/install.sh /uv-installer.sh
-RUN sh /uv-installer.sh && rm /uv-installer.sh
-ENV PATH="/root/.local/bin:$PATH"
-
-# Install system dependencies required for Python package compilation
-# We clean up apt cache after installation to reduce image size
+# Install system dependencies + uv
 RUN apt-get update && \
     apt-get install -y \
     git \
     python3-dev \
-    curl \
-    ca-certificates \
-    build-essential
+    build-essential \
+    curl && \
+    curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Make uv available in PATH
+ENV PATH="/root/.local/bin:$PATH"
 
 # Set the working directory for our application
 WORKDIR /website
 
-# Copy the application code from the repository to the container
-# The code is already present in the repo, no need to git clone
-COPY . .
+# Copy dependency files first for better Docker layer caching
+COPY pyproject.toml uv.lock README.md ./
 
-# Install Python dependencies using uv
-RUN uv sync --frozen --no-dev
+# Install dependencies (frozen = use exact lockfile versions)
+RUN uv sync --frozen --no-dev --no-install-project
+
+# Copy application code
+COPY . .
 
 # Expose the port that our service will listen on
 EXPOSE 8080
 
-# Start the application with gunicorn instead of python directly
+# Start the application with gunicorn via uv
 CMD ["uv", "run", "gunicorn", "-c", "gunicorn.conf.py", "statistics_oc:application"]
