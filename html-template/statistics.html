@@ -21,47 +21,33 @@ $def with (active, sp_title, current_subdomain, base_url, render)
   <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
   <link href="/static/css/ie10-viewport-bug-workaround.css" rel="stylesheet" />
 
-
-  <!-- ******ARIANNA*********- NECESSARIO: per la selezione delle date-->
-
   <link href="/static/css/statistics.css" rel="stylesheet" />
 
-  <!-- moment.js da https://cdn.jsdelivr.net/momentjs/latest/moment.min.js -->
+  <!-- moment.js -->
   <script type="text/javascript" src="/static/js/moment.min.js"></script>
 
-  <!--NECESSARIO-->
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.4.1/jquery.js"></script>
+  <!-- jQuery -->
+  <script src="/static/js/jquery-1.12.1.min.js"></script>
 
-  <!--NECESSARIO: Bottoni start / end-->
-  <link rel="stylesheet" type="text/css" media="screen"
-    href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.7.2/themes/base/jquery-ui.css">
-  <link href="https://code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css" />
+  <!-- jQuery UI (smoothness) -->
+  <link href="/static/css/jquery-ui.css" rel="stylesheet" type="text/css" />
+  <script src="/static/js/jquery-ui.min.js"></script>
 
-  <!--NECESSARIO: per la selezione delle date-->
-  <link href="static/css/MonthPicker.min.css" rel="stylesheet" type="text/css" />
-
-  <!--NECESSARIO: per la selezione delle date, Bottoni start / end-->
-  <script src="https://code.jquery.com/jquery-1.12.1.min.js"></script>
-
-  <!--NECESSARIO: MonthPicker Error: The jQuery UI button and datepicker plug-ins must be loaded.-->
-  <script src="https://code.jquery.com/ui/1.11.4/jquery-ui.min.js"></script>
-
-  <!--NECESSARIO: per MonthPicker-->
+  <!-- MonthPicker -->
+  <link href="/static/css/MonthPicker.min.css" rel="stylesheet" type="text/css" />
   <script src="/static/js/jquery.maskedinput.min.js"></script>
+  <script src="/static/js/MonthPicker.min.js"></script>
 
-  <script src="static/js/MonthPicker.min.js"></script>
+  <!-- Chart.js -->
+  <script src="/static/js/chart.umd.min.js"></script>
 
-  <!--NECESSARIO: per i grafici-->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <!-- Google Charts for GeoMap -->
+  <!-- Google Charts for GeoMap (served from gstatic, cannot be localized) -->
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 
-  <!--NECESSARIO: codice che gestisce l'update delle visualizzazioni, il recupero dati da API (per ora file locali), calendari, selezioni-->
+  <!-- Dashboard logic -->
   <script src="/static/stats/statistics.js"></script>
 
-  <!--NECESSARIO: per le richieste per ottenere i dati-->
-  <!-- axios da https://unpkg.com/axios/dist/axios.min.js -->
+  <!-- axios -->
   <script src="/static/js/axios.min.js"></script>
 
   <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
