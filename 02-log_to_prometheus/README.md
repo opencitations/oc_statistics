@@ -44,7 +44,7 @@ The `hashed_ip` column (first column) is present in the CSV but not used for met
 ## Generated Metrics
 
 - Total requests by service (API, SPARQL, Search, Dataset)
-- API breakdown: INDEX v1/v2, META
+- API breakdown: INDEX v1/v2, META, SKG-IF
 - Requests by country (top 20)
 - Requests by continent
 - Response codes (200, 301, 404, all)

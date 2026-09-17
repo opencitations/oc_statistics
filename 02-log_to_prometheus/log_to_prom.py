@@ -186,6 +186,12 @@ def is_meta_api_new_format(path):
     """
     return path.startswith('/meta/v1')
 
+def is_skgif_api_new_format(path):
+    """
+    Check if it's a SKG-IF API request in new format
+    """
+    return path.startswith('/skg-if/')
+
 def parse_log_file(input_file, output_file, old_format=False):
     """
     Reads the CSV log file and generates Prometheus metrics
@@ -240,6 +246,7 @@ def parse_log_file(input_file, output_file, old_format=False):
     api_index_v1 = 0
     api_index_v2 = 0
     api_meta_total = 0
+    api_skgif_total = 0
     sparql_total = 0
     search_total = 0
 
@@ -340,7 +347,9 @@ def parse_log_file(input_file, output_file, old_format=False):
                                         api_index_v2 += 1
                             else:
                                 is_meta = is_meta_api_new_format(path)
-                                if is_meta:
+                                if is_skgif_api_new_format(path):
+                                    api_skgif_total += 1
+                                elif is_meta:
                                     api_meta_total += 1
                                 else:
                                     # INDEX API
@@ -402,6 +411,7 @@ def parse_log_file(input_file, output_file, old_format=False):
     print(f"    - INDEX v1: {api_index_v1}")
     print(f"    - INDEX v2: {api_index_v2}")
     print(f"  - META v1: {api_meta_total}")
+    print(f"  - SKG-IF: {api_skgif_total}")
 
     print("\n=== TOKEN STATISTICS ===")
     print(f"Total unique tokens: {unique_tokens_count}")
@@ -427,7 +437,7 @@ def parse_log_file(input_file, output_file, old_format=False):
     generate_prometheus_file(
         output_file, total_requests, request_methods, response_codes,
         countries, continents, api_total, api_index_total,
-        api_index_v1, api_index_v2, api_meta_total, sparql_total,
+        api_index_v1, api_index_v2, api_meta_total, api_skgif_total, sparql_total,
         search_total, dataset_total_count,
         unique_tokens_count, api_tokens,
         indexed_records,
@@ -438,7 +448,7 @@ def parse_log_file(input_file, output_file, old_format=False):
 
 def generate_prometheus_file(output_file, total_requests, request_methods,
                            response_codes, countries, continents, api_total, api_index_total,
-                           api_index_v1, api_index_v2, api_meta_total, sparql_total,
+                           api_index_v1, api_index_v2, api_meta_total, api_skgif_total, sparql_total,
                            search_total, dataset_total_count,
                            unique_tokens_count, api_tokens,
                            indexed_records,
@@ -474,6 +484,10 @@ def generate_prometheus_file(output_file, total_requests, request_methods,
             f.write("# HELP opencitations_api_meta_requests_total Total META API requests\n")
             f.write("# TYPE opencitations_api_meta_requests_total counter\n")
             f.write(f"opencitations_api_meta_requests_total {api_meta_total}\n\n")
+
+            f.write("# HELP opencitations_api_skgif_requests_total Total SKG-IF API requests\n")
+            f.write("# TYPE opencitations_api_skgif_requests_total counter\n")
+            f.write(f"opencitations_api_skgif_requests_total {api_skgif_total}\n\n")
 
             # SPARQL metrics
             f.write("# HELP opencitations_sparql_requests_total Total SPARQL requests\n")
