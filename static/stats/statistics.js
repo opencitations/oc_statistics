@@ -69,7 +69,7 @@ $(window).load(function () {
 
   // Helper function to extract API breakdown data
   function extractAPIBreakdown(prom_to_dict) {
-    let index_v1 = 0, index_v2 = 0, meta = 0;
+    let index_v1 = 0, index_v2 = 0, meta = 0, skgif = 0;
     
     // New format
     if (prom_to_dict.opencitations_api_index_requests_by_version_total) {
@@ -80,8 +80,12 @@ $(window).load(function () {
     if (prom_to_dict.opencitations_api_meta_requests_total) {
       meta = Number(prom_to_dict.opencitations_api_meta_requests_total);
     }
+
+    if (prom_to_dict.opencitations_api_skgif_requests_total) {
+      skgif = Number(prom_to_dict.opencitations_api_skgif_requests_total);
+    }
     
-    return { index_v1, index_v2, meta };
+    return { index_v1, index_v2, meta, skgif };
   }
 
   // Helper function to parse country line and extract both name and ISO
@@ -602,11 +606,12 @@ $(window).load(function () {
             };
           }
 
-          const { index_v1, index_v2, meta } = extractAPIBreakdown(prom_to_dict);
+          const { index_v1, index_v2, meta, skgif } = extractAPIBreakdown(prom_to_dict);
           let result = {};
           result["index_v1"] = index_v1;
           result["index_v2"] = index_v2;
           result["meta"] = meta;
+          result["skgif"] = skgif;
           
           key_name = months[date[2]] + " " + date[1];
           dict_name_3[key_name] = result;
@@ -615,6 +620,7 @@ $(window).load(function () {
         index_v1_list = [];
         index_v2_list = [];
         meta_list = [];
+        skgif_list = [];
         labels_list_3 = [];
 
         for (const key in dict_name_3) {
@@ -622,6 +628,7 @@ $(window).load(function () {
           index_v1_list.push(dict_name_3[key].index_v1);
           index_v2_list.push(dict_name_3[key].index_v2);
           meta_list.push(dict_name_3[key].meta);
+          skgif_list.push(dict_name_3[key].skgif);
         }
 
         var apiBreakdownData = {
@@ -647,6 +654,13 @@ $(window).load(function () {
               borderColor: "#FFCE56",
               borderWidth: 1,
               data: meta_list
+            },
+            {
+              label: "SKG-IF",
+              backgroundColor: "#4BC0C0",
+              borderColor: "#4BC0C0",
+              borderWidth: 1,
+              data: skgif_list
             }
           ]
         };
@@ -1449,11 +1463,12 @@ $(window).load(function () {
                 };
               }
 
-              const { index_v1, index_v2, meta } = extractAPIBreakdown(prom_to_dict);
+              const { index_v1, index_v2, meta, skgif } = extractAPIBreakdown(prom_to_dict);
               let result = {};
               result["index_v1"] = index_v1;
               result["index_v2"] = index_v2;
               result["meta"] = meta;
+              result["skgif"] = skgif;
               
               key_name = months[date[2]] + " " + date[1];
               dict_name_3[key_name] = result;
@@ -1462,6 +1477,7 @@ $(window).load(function () {
             index_v1_list = [];
             index_v2_list = [];
             meta_list = [];
+            skgif_list = [];
             labels_list_3 = [];
 
             for (const key in dict_name_3) {
@@ -1469,6 +1485,7 @@ $(window).load(function () {
               index_v1_list.push(dict_name_3[key].index_v1);
               index_v2_list.push(dict_name_3[key].index_v2);
               meta_list.push(dict_name_3[key].meta);
+              skgif_list.push(dict_name_3[key].skgif);
             }
 
             myAPIBreakdown.destroy()
@@ -1496,6 +1513,13 @@ $(window).load(function () {
                   borderColor: "#FFCE56",
                   borderWidth: 1,
                   data: meta_list
+                },
+                {
+                  label: "SKG-IF",
+                  backgroundColor: "#4BC0C0",
+                  borderColor: "#4BC0C0",
+                  borderWidth: 1,
+                  data: skgif_list
                 }
               ]
             };
