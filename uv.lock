@@ -790,6 +790,15 @@ wheels = [
 ]
 
 [[package]]
+name = "multipart"
+version = "2.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/49/c4/f3f0c57ec3e845bae038d3849af0e2b9d3f62a046b2a09af3f697ad882d6/multipart-2.0.0.tar.gz", hash = "sha256:d6076567b489270271d9ec103d404745da1501ad5b70e3a7f1f07f5623d82850", size = 42606, upload-time = "2026-07-18T16:03:23.993Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/71/dd/feb9c23d5c5a382194a9f86b02e98b8724d745e1a1cf4ecb1a5c0f884aa1/multipart-2.0.0-py3-none-any.whl", hash = "sha256:b3d4d473c4b96bb43e0d54b76fcc3b89b904df28387daf54e08405eb2123a081", size = 16418, upload-time = "2026-07-18T16:03:22.599Z" },
+]
+
+[[package]]
 name = "mypy"
 version = "2.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -851,7 +860,7 @@ wheels = [
 
 [[package]]
 name = "oc-statistics"
-version = "1.4.1"
+version = "1.4.4"
 source = { virtual = "." }
 dependencies = [
     { name = "apscheduler" },
@@ -950,7 +959,7 @@ requires-dist = [
     { name = "ujson", specifier = ">=5.12.1" },
     { name = "urllib3", specifier = ">=2.7.0" },
     { name = "watchdog", specifier = ">=6.0.0" },
-    { name = "web-py", specifier = ">=0.62" },
+    { name = "web-py", specifier = ">=0.76" },
     { name = "wrapt", specifier = ">=2.2.1" },
     { name = "yapf", specifier = ">=0.43.0" },
     { name = "zope-event", specifier = ">=6.2" },
@@ -1516,12 +1525,17 @@ wheels = [
 
 [[package]]
 name = "web-py"
-version = "0.62"
+version = "0.76"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cheroot" },
+    { name = "more-itertools" },
+    { name = "multipart" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cd/6e/338a060bb5b52ee8229bdada422eaa5f71b13f8d33467f37f870ed2cae4b/web.py-0.62.tar.gz", hash = "sha256:5ce684caa240654cae5950da8b4b7bc178812031e08f990518d072bd44ab525e", size = 623196, upload-time = "2020-11-09T11:24:34.948Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ae/bf/1c18290e97934e0bd42a86b9ea7667f6fe41b18b61635b0e2753602610d7/web_py-0.76.tar.gz", hash = "sha256:f0973dee204a7fbce8da5e672d17e6b09e244ad4ad5c33c9cb6ca423d0400198", size = 93609, upload-time = "2026-06-08T12:54:59.685Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1c/ef/a2de317c459e08b755eafb340a8dc3e9b29fcc875f1dbf6bc194974002c1/web_py-0.76-py3-none-any.whl", hash = "sha256:0889bf3dac2dd3763913825829defcb8252c1474c05e142ddb78e2fa725eb0f6", size = 78705, upload-time = "2026-06-08T12:54:57.959Z" },
+]
 
 [[package]]
 name = "wrapt"

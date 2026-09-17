@@ -1,6 +1,6 @@
 [project]
 name = "oc-statistics"
-version = "1.4.3"
+version = "1.4.4"
 description = "STATISTICS service for OpenCitations. "
 requires-python = ">=3.11"
 dependencies = [
@@ -48,7 +48,7 @@ dependencies = [
     "ujson>=5.12.1",
     "urllib3>=2.7.0",
     "watchdog>=6.0.0",
-    "web-py>=0.62",
+    "web-py>=0.76",
     "wrapt>=2.2.1",
     "yapf>=0.43.0",
     "zope-event>=6.2",
