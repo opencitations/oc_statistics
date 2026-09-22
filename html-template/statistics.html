@@ -41,8 +41,14 @@ $def with (active, sp_title, current_subdomain, base_url, render)
   <!-- Chart.js -->
   <script src="/static/js/chart.umd.min.js"></script>
 
-  <!-- Google Charts for GeoMap (served from gstatic, cannot be localized) -->
-  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+  <!-- Plotly (geo bundle) for the country map -->
+  <script src="/static/js/plotly-geo.min.js"></script>
+
+  <!-- Country map size (kept here: static/css is overwritten by sync_static) -->
+  <style>
+    #regions_div { width: 100%; height: 600px; margin-top: 30px; }
+    @media (max-width: 600px) { #regions_div { height: 360px; } }
+  </style>
 
   <!-- Dashboard logic -->
   <script src="/static/stats/statistics.js"></script>
@@ -183,9 +189,7 @@ $def with (active, sp_title, current_subdomain, base_url, render)
             </div>
           </div>
         </div>
-        <div style="width: 100%; height: 600px; margin-top: 30px;">
-          <div id="regions_div" style="width: 100%; height: 100%;"></div>
-        </div>
+        <div id="regions_div"></div>
         <button id="Invio_2" class="btn">Update Visualizations</button>
       </div>
 

@@ -1,16 +1,172 @@
-// Encoding for Google Maps API key
-const p1 = 'QUl6YVN5RC05dFNy';
-const p2 = 'a2U3MlBvdVE=';
-const p3 = 'TW5NWC1hN2U=';
-const p4 = 'WlNXMGprRk0=';
-const p5 = 'QldZ';
+// Country map (Plotly geo bundle, geometries served from /static/data/plotly/)
+const GEO_TOPOJSON_URL = '/static/data/plotly/';
+const GEO_COLORSCALE = [
+  [0, '#deebf7'], [0.25, '#9ecae1'], [0.5, '#4292c6'], [0.75, '#2171b5'], [1, '#08306b']
+];
+const GEO_NARROW = window.matchMedia('(max-width: 600px)');
 
-google.charts.load('current', {
-  'packages': ['geochart'],
-  'mapsApiKey': atob(p1) + atob(p2) + atob(p3) + atob(p4) + atob(p5)
+// Countries too small to be visible at world scale, drawn as dots [lat, lon]
+const GEO_SMALL_COUNTRIES = {
+  AD: [42.55, 1.60], BB: [13.19, -59.54], BH: [26.07, 50.56], HK: [22.32, 114.17],
+  LI: [47.17, 9.56], LU: [49.82, 6.13], MC: [43.74, 7.42], MO: [22.20, 113.54],
+  MT: [35.94, 14.38], MU: [-20.35, 57.55], MV: [3.20, 73.22], SC: [-4.68, 55.49],
+  SG: [1.35, 103.82], SM: [43.94, 12.46], VA: [41.90, 12.45], XK: [42.60, 20.90]
+};
+
+// MaxMind provides ISO-2 codes, Plotly expects ISO-3
+const ISO2_TO_ISO3 = {
+  AD:"AND",AE:"ARE",AF:"AFG",AG:"ATG",AI:"AIA",AL:"ALB",AM:"ARM",AO:"AGO",AQ:"ATA",AR:"ARG",AS:"ASM",AT:"AUT",
+  AU:"AUS",AW:"ABW",AX:"ALA",AZ:"AZE",BA:"BIH",BB:"BRB",BD:"BGD",BE:"BEL",BF:"BFA",BG:"BGR",BH:"BHR",BI:"BDI",
+  BJ:"BEN",BL:"BLM",BM:"BMU",BN:"BRN",BO:"BOL",BQ:"BES",BR:"BRA",BS:"BHS",BT:"BTN",BV:"BVT",BW:"BWA",BY:"BLR",
+  BZ:"BLZ",CA:"CAN",CC:"CCK",CD:"COD",CF:"CAF",CG:"COG",CH:"CHE",CI:"CIV",CK:"COK",CL:"CHL",CM:"CMR",CN:"CHN",
+  CO:"COL",CR:"CRI",CU:"CUB",CV:"CPV",CW:"CUW",CX:"CXR",CY:"CYP",CZ:"CZE",DE:"DEU",DJ:"DJI",DK:"DNK",DM:"DMA",
+  DO:"DOM",DZ:"DZA",EC:"ECU",EE:"EST",EG:"EGY",EH:"ESH",ER:"ERI",ES:"ESP",ET:"ETH",FI:"FIN",FJ:"FJI",FK:"FLK",
+  FM:"FSM",FO:"FRO",FR:"FRA",GA:"GAB",GB:"GBR",GD:"GRD",GE:"GEO",GF:"GUF",GG:"GGY",GH:"GHA",GI:"GIB",GL:"GRL",
+  GM:"GMB",GN:"GIN",GP:"GLP",GQ:"GNQ",GR:"GRC",GS:"SGS",GT:"GTM",GU:"GUM",GW:"GNB",GY:"GUY",HK:"HKG",HM:"HMD",
+  HN:"HND",HR:"HRV",HT:"HTI",HU:"HUN",ID:"IDN",IE:"IRL",IL:"ISR",IM:"IMN",IN:"IND",IO:"IOT",IQ:"IRQ",IR:"IRN",
+  IS:"ISL",IT:"ITA",JE:"JEY",JM:"JAM",JO:"JOR",JP:"JPN",KE:"KEN",KG:"KGZ",KH:"KHM",KI:"KIR",KM:"COM",KN:"KNA",
+  KP:"PRK",KR:"KOR",KW:"KWT",KY:"CYM",KZ:"KAZ",LA:"LAO",LB:"LBN",LC:"LCA",LI:"LIE",LK:"LKA",LR:"LBR",LS:"LSO",
+  LT:"LTU",LU:"LUX",LV:"LVA",LY:"LBY",MA:"MAR",MC:"MCO",MD:"MDA",ME:"MNE",MF:"MAF",MG:"MDG",MH:"MHL",MK:"MKD",
+  ML:"MLI",MM:"MMR",MN:"MNG",MO:"MAC",MP:"MNP",MQ:"MTQ",MR:"MRT",MS:"MSR",MT:"MLT",MU:"MUS",MV:"MDV",MW:"MWI",
+  MX:"MEX",MY:"MYS",MZ:"MOZ",NA:"NAM",NC:"NCL",NE:"NER",NF:"NFK",NG:"NGA",NI:"NIC",NL:"NLD",NO:"NOR",NP:"NPL",
+  NR:"NRU",NU:"NIU",NZ:"NZL",OM:"OMN",PA:"PAN",PE:"PER",PF:"PYF",PG:"PNG",PH:"PHL",PK:"PAK",PL:"POL",PM:"SPM",
+  PN:"PCN",PR:"PRI",PS:"PSE",PT:"PRT",PW:"PLW",PY:"PRY",QA:"QAT",RE:"REU",RO:"ROU",RS:"SRB",RU:"RUS",RW:"RWA",
+  SA:"SAU",SB:"SLB",SC:"SYC",SD:"SDN",SE:"SWE",SG:"SGP",SH:"SHN",SI:"SVN",SJ:"SJM",SK:"SVK",SL:"SLE",SM:"SMR",
+  SN:"SEN",SO:"SOM",SR:"SUR",SS:"SSD",ST:"STP",SV:"SLV",SX:"SXM",SY:"SYR",SZ:"SWZ",TC:"TCA",TD:"TCD",TF:"ATF",
+  TG:"TGO",TH:"THA",TJ:"TJK",TK:"TKL",TL:"TLS",TM:"TKM",TN:"TUN",TO:"TON",TR:"TUR",TT:"TTO",TV:"TUV",TW:"TWN",
+  TZ:"TZA",UA:"UKR",UG:"UGA",UM:"UMI",US:"USA",UY:"URY",UZ:"UZB",VA:"VAT",VC:"VCT",VE:"VEN",VG:"VGB",VI:"VIR",
+  VN:"VNM",VU:"VUT",WF:"WLF",WS:"WSM",YE:"YEM",YT:"MYT",ZA:"ZAF",ZM:"ZMB",ZW:"ZWE"
+};
+
+let lastGeoData = null;
+
+function formatGeoCount(n) {
+  if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+  return String(n);
+}
+
+function drawGeoMap(countryData) {
+  lastGeoData = countryData;
+  const narrow = GEO_NARROW.matches;
+
+  const locations = [], z = [], text = [];
+  const dotLat = [], dotLon = [], dotZ = [], dotText = [];
+  let max = 1;
+
+  // Ascending order so that dots with more requests are drawn on top
+  const entries = Object.entries(countryData).sort((a, b) => a[1].count - b[1].count);
+
+  for (const [iso2, info] of entries) {
+    if (info.count <= 0) continue;
+    const iso3 = ISO2_TO_ISO3[iso2];
+    const dot = GEO_SMALL_COUNTRIES[iso2];
+    if (!iso3 && !dot) continue;
+
+    const label = `${info.name || iso2} – ${iso2}<br>${info.count.toLocaleString('en-US')} requests`;
+    const logCount = Math.log10(info.count);
+
+    if (iso3) {
+      locations.push(iso3);
+      z.push(logCount);
+      text.push(label);
+    }
+    if (dot) {
+      dotLat.push(dot[0]);
+      dotLon.push(dot[1]);
+      dotZ.push(logCount);
+      dotText.push(label);
+    }
+    max = Math.max(max, info.count);
+  }
+
+  const zmax = Math.max(1, Math.ceil(Math.log10(max)));
+  const tickvals = Array.from({ length: zmax + 1 }, (_, i) => i);
+
+  const colorbar = {
+    thickness: 12,
+    outlinewidth: 0,
+    tickvals: tickvals,
+    ticktext: tickvals.map(v => formatGeoCount(10 ** v))
+  };
+  if (narrow) {
+    Object.assign(colorbar, {
+      orientation: 'h', len: 0.9, x: 0.5, y: -0.02, yanchor: 'top',
+      title: { text: 'Requests', side: 'top' }
+    });
+  } else {
+    Object.assign(colorbar, { len: 0.75, title: { text: 'Requests', side: 'right' } });
+  }
+
+  const data = [
+    {
+      type: 'choropleth',
+      locationmode: 'ISO-3',
+      locations: locations,
+      z: z,
+      text: text,
+      hovertemplate: '%{text}<extra></extra>',
+      zmin: 0,
+      zmax: zmax,
+      colorscale: GEO_COLORSCALE,
+      marker: { line: { color: '#ffffff', width: 0.4 } },
+      colorbar: colorbar
+    },
+    {
+      type: 'scattergeo',
+      mode: 'markers',
+      lat: dotLat,
+      lon: dotLon,
+      text: dotText,
+      hovertemplate: '%{text}<extra></extra>',
+      marker: {
+        size: narrow ? 4 : 7,
+        color: dotZ,
+        cmin: 0,
+        cmax: zmax,
+        colorscale: GEO_COLORSCALE,
+        showscale: false,
+        line: { color: '#212529', width: 0.8 }
+      }
+    }
+  ];
+
+  const layout = {
+    margin: { l: 0, r: 0, t: 0, b: narrow ? 60 : 0 },
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    font: { color: '#212529' },
+    geo: {
+      resolution: 50,
+      projection: { type: 'robinson' },
+      showframe: false,
+      showcoastlines: false,
+      showland: true,
+      landcolor: '#e9ecef',
+      showocean: true,
+      oceancolor: '#f4f8fb',
+      showlakes: true,
+      lakecolor: '#f4f8fb',
+      showcountries: true,
+      countrycolor: '#ffffff',
+      bgcolor: 'rgba(0,0,0,0)',
+      lataxis: { range: [-58, 90] }
+    }
+  };
+
+  Plotly.react('regions_div', data, layout, {
+    topojsonURL: GEO_TOPOJSON_URL,
+    displaylogo: false,
+    responsive: true,
+    // sendChartToCloud would upload the chart data to Plotly Cloud
+    modeBarButtonsToRemove: ['sendChartToCloud', 'select2d', 'lasso2d']
+  });
+}
+
+GEO_NARROW.addEventListener('change', function () {
+  if (lastGeoData) {
+    drawGeoMap(lastGeoData);
+  }
 });
-
-let myGeoChart = null;
 
 $(window).load(function () {
   let last_date;
@@ -98,107 +254,6 @@ $(window).load(function () {
       iso: isoMatch ? isoMatch[1] : null
     };
   }
-
-  function drawGeoMap(countryData) {
-    let dataArray = [['Country', 'Requests', {type: 'string', role: 'tooltip'}]];
-    
-    for (const countryIso in countryData) {
-      if (countryIso !== 'Unknown' && countryIso !== 'XX') {
-        const name = countryData[countryIso].name || countryIso;
-        const count = countryData[countryIso].count;
-        
-        let tooltip;
-        if (countryIso === 'CN' && countryData[countryIso].details) {
-          // Special case for China with Hong Kong details
-          const details = countryData[countryIso].details;
-          tooltip = `${name} (including Hong Kong)\n`;
-          if (details.china > 0) {
-            tooltip += `China: ${details.china.toLocaleString()}\n`;
-          }
-          if (details.hongkong > 0) {
-            tooltip += `Hong Kong: ${details.hongkong.toLocaleString()}\n`;
-          }
-          tooltip += `Total: ${count.toLocaleString()}`;
-        } else {
-          tooltip = `${name} - ${countryIso}\nRequests: ${count.toLocaleString()}`;
-        }
-        
-        dataArray.push([countryIso, count, tooltip]);
-      }
-    }
-
-    var data = google.visualization.arrayToDataTable(dataArray);
-
-    let allCounts = Object.values(countryData).map(c => c.count).filter(c => c > 0);
-    let minValue = Math.min(...allCounts);
-    let maxValue = Math.max(...allCounts);
-    
-    let logMin = Math.log10(minValue);
-    let logMax = Math.log10(maxValue);
-    
-    let colorValues = [];
-    for (let i = 0; i < 12; i++) {
-      let logValue = logMin + (logMax - logMin) * i / 11;
-      colorValues.push(Math.round(Math.pow(10, logValue)));
-    }
-
-    var options = {
-      colorAxis: {
-        values: colorValues,
-        colors: [
-          '#ffffff',
-          '#e6f2ff',
-          '#cce5ff',
-          '#99ccff',
-          '#66b3ff',
-          '#3399ff',
-          '#0080ff',
-          '#0066cc',
-          '#004d99',
-          '#003366',
-          '#001a33',
-          '#000d1a'
-        ]
-      },
-      backgroundColor: 'transparent',
-      datalessRegionColor: '#f7f7f7',
-      defaultColor: '#e0e0e0',
-      legend: {
-        numberFormat: 'short'
-      },
-      tooltip: {
-        trigger: 'focus',
-        isHtml: false
-      },
-      region: 'world',
-      displayMode: 'regions',
-      resolution: 'countries',
-      keepAspectRatio: true,
-      width: '100%',
-      height: '100%'
-    };
-
-    var chart = new google.visualization.GeoChart(document.getElementById('regions_div'));
-    chart.draw(data, options);
-    
-    setTimeout(function() {
-      chart.draw(data, options);
-    }, 100);
-    
-    if (!window.geoChartResizeListener) {
-      window.geoChartResizeListener = true;
-      window.addEventListener('resize', function() {
-        if (window.myGeoChart && window.lastGeoData && window.lastGeoOptions) {
-          window.myGeoChart.draw(window.lastGeoData, window.lastGeoOptions);
-        }
-      });
-    }
-    
-    window.lastGeoData = data;
-    window.lastGeoOptions = options;
-    
-    return chart;
-}
 
   // Default data visualizations
   axios.get(baseurl+'/statistics/last-month')
@@ -696,79 +751,52 @@ $(window).load(function () {
         console.error("Error loading API breakdown chart data:", errors);
       })
 
-      // Geographic Map (Google GeoChart)
-      google.charts.setOnLoadCallback(function() {
-        requests_list_2 = []
-        for (i = 0; i < default_query_array.length; i++) {
-          let ax_req_country = axios.get(default_query_array[i])
-          requests_list_2.push(ax_req_country)
-        }
+      // Geographic Map (Plotly)
+      requests_list_2 = []
+      for (i = 0; i < default_query_array.length; i++) {
+        let ax_req_country = axios.get(default_query_array[i])
+        requests_list_2.push(ax_req_country)
+      }
 
-        let country_aggregated = {};
-        axios.all(requests_list_2).then(axios.spread((...responses) => {
-          for (i = 0; i < responses.length; i++) {
-            metricsStr = (responses[i]).data;
+      let country_aggregated = {};
+      axios.all(requests_list_2).then(axios.spread((...responses) => {
+        for (i = 0; i < responses.length; i++) {
+          metricsStr = (responses[i]).data;
 
-            var array1 = metricsStr.split(/\r?\n/);
-            var filtered = array1.filter(function (value, index, arr) {
-              return !value.startsWith("#");
-            });
+          var array1 = metricsStr.split(/\r?\n/);
+          var filtered = array1.filter(function (value, index, arr) {
+            return !value.startsWith("#");
+          });
 
-            // Process country lines separately
-            for (let j = 0; j < filtered.length; j++) {
-              const line = filtered[j];
-              if (line.includes('opencitations_requests_by_country_total{')) {
-                const countryInfo = parseCountryLine(line);
-                if (countryInfo.iso && countryInfo.name) {
-                  // Extract the count value
-                  const valuePart = line.split('} ')[1];
-                  const count = Number(valuePart);
-                  
-                  // Aggregate Hong Kong (HK) into China (CN)
-                  if (countryInfo.iso === 'HK') {
-                    if (!country_aggregated['CN']) {
-                      country_aggregated['CN'] = { 
-                        name: 'China', 
-                        count: 0,
-                        details: { china: 0, hongkong: 0 }
-                      };
-                    }
-                    country_aggregated['CN'].count += count;
-                    country_aggregated['CN'].details.hongkong += count;
-                  } else if (countryInfo.iso === 'CN') {
-                    if (!country_aggregated['CN']) {
-                      country_aggregated['CN'] = { 
-                        name: 'China', 
-                        count: 0,
-                        details: { china: 0, hongkong: 0 }
-                      };
-                    }
-                    country_aggregated['CN'].count += count;
-                    country_aggregated['CN'].details.china += count;
-                  } else {
-                    // Other countries
-                    if (!country_aggregated[countryInfo.iso]) {
-                      country_aggregated[countryInfo.iso] = { 
-                        name: countryInfo.name, 
-                        count: 0 
-                      };
-                    }
-                    country_aggregated[countryInfo.iso].count += count;
-                  }
+          // Process country lines separately
+          for (let j = 0; j < filtered.length; j++) {
+            const line = filtered[j];
+            if (line.includes('opencitations_requests_by_country_total{')) {
+              const countryInfo = parseCountryLine(line);
+              if (countryInfo.iso && countryInfo.name) {
+                // Extract the count value
+                const valuePart = line.split('} ')[1];
+                const count = Number(valuePart);
+                
+                if (!country_aggregated[countryInfo.iso]) {
+                  country_aggregated[countryInfo.iso] = {
+                    name: countryInfo.name,
+                    count: 0
+                  };
                 }
+                country_aggregated[countryInfo.iso].count += count;
               }
             }
           }
+        }
 
-          myGeoChart = drawGeoMap(country_aggregated);
-          window.myGeoChart = myGeoChart;
-          done();
+        drawGeoMap(country_aggregated);
+        done();
 
-        })).catch(errors => {
-          console.error("Error loading geographic map data:", errors);
-          done();
-        })
-      });
+      })).catch(errors => {
+        console.error("Error loading geographic map data:", errors);
+        done();
+      })
     })
     .then(function () {
       function elapsedMonths(d1, d2) {
@@ -1333,44 +1361,19 @@ $(window).load(function () {
                     const valuePart = line.split('} ')[1];
                     const count = Number(valuePart);
                     
-                    // Aggregate Hong Kong (HK) into China (CN)
-                    if (countryInfo.iso === 'HK') {
-                      if (!country_aggregated['CN']) {
-                        country_aggregated['CN'] = { 
-                          name: 'China', 
-                          count: 0,
-                          details: { china: 0, hongkong: 0 }
-                        };
-                      }
-                      country_aggregated['CN'].count += count;
-                      country_aggregated['CN'].details.hongkong += count;
-                    } else if (countryInfo.iso === 'CN') {
-                      if (!country_aggregated['CN']) {
-                        country_aggregated['CN'] = { 
-                          name: 'China', 
-                          count: 0,
-                          details: { china: 0, hongkong: 0 }
-                        };
-                      }
-                      country_aggregated['CN'].count += count;
-                      country_aggregated['CN'].details.china += count;
-                    } else {
-                      // Other countries
-                      if (!country_aggregated[countryInfo.iso]) {
-                        country_aggregated[countryInfo.iso] = { 
-                          name: countryInfo.name, 
-                          count: 0 
-                        };
-                      }
-                      country_aggregated[countryInfo.iso].count += count;
+                    if (!country_aggregated[countryInfo.iso]) {
+                      country_aggregated[countryInfo.iso] = {
+                        name: countryInfo.name,
+                        count: 0
+                      };
                     }
+                    country_aggregated[countryInfo.iso].count += count;
                   }
                 }
               }
             }
 
-            myGeoChart = drawGeoMap(country_aggregated);
-            window.myGeoChart = myGeoChart;
+            drawGeoMap(country_aggregated);
 
           })).catch(errors => {
             console.error("Error updating geographic map:", errors);
@@ -1566,10 +1569,8 @@ function done() {
     document.getElementById("page_cont").style = "display: visible;";
     document.getElementsByTagName("footer")[0].style = "display: visible;"
     
-    // Force redraw of the Google GeoChart after the container is visible
-    if (window.myGeoChart && window.lastGeoData && window.lastGeoOptions) {
-        setTimeout(function() {
-            window.myGeoChart.draw(window.lastGeoData, window.lastGeoOptions);
-        }, 200);
+    // The map is drawn while the page is hidden, resize it once visible
+    if (lastGeoData) {
+        Plotly.Plots.resize('regions_div');
     }
 }
