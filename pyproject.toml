@@ -1,6 +1,6 @@
 [project]
 name = "oc-statistics"
-version = "0.17.2"
+version = "1.5.0"
 description = "STATISTICS service for OpenCitations. "
 requires-python = ">=3.11"
 dependencies = [
